@@ -1,6 +1,7 @@
 import { createInsertSchema } from "drizzle-zod";
 import {
   pgEnum,
+  index,
   pgTable,
   text,
   timestamp,
@@ -61,17 +62,26 @@ export const postsTable = pgTable("posts", {
   ...timestamps,
 });
 
-export const sharesTable = pgTable("shares", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  postId: uuid("post_id")
-    .notNull()
-    .references(() => postsTable.id, { onDelete: "cascade" }),
-  sharedById: uuid("shared_by_id")
-    .notNull()
-    .references(() => membersTable.id, { onDelete: "cascade" }),
-  platform: sharePlatformEnum("platform").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-});
+export const sharesTable = pgTable(
+  "shares",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => postsTable.id, { onDelete: "cascade" }),
+    sharedById: uuid("shared_by_id")
+      .notNull()
+      .references(() => membersTable.id, { onDelete: "cascade" }),
+    platform: sharePlatformEnum("platform").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("shares_post_id_idx").on(table.postId),
+    index("shares_shared_by_id_idx").on(table.sharedById),
+  ],
+);
 
 export const chapterConfigsTable = pgTable("chapter_configs", {
   id: uuid("id").defaultRandom().primaryKey(),

@@ -4,6 +4,7 @@ import authRouter from "./auth";
 import healthRouter from "./health";
 import membersRouter from "./members";
 import postsRouter from "./posts";
+import sharesRouter from "./shares";
 import uploadRouter from "./upload";
 
 const router: IRouter = Router();
@@ -13,6 +14,7 @@ router.use(authRouter);
 router.use(adminRouter);
 router.use(membersRouter);
 router.use(postsRouter);
+router.use(sharesRouter);
 router.use(uploadRouter);
 
 export default router;

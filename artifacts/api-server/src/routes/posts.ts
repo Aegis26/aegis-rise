@@ -8,7 +8,7 @@ import { HttpError } from "../utils/errors";
 const router: IRouter = Router();
 
 const uuidSchema = z.string().uuid();
-const paginationSchema = z.object({
+export const paginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
@@ -80,7 +80,7 @@ function serializePost(row: PostRow) {
   };
 }
 
-function parseId(value: unknown, resource: "post" | "member"): string {
+export function parseId(value: unknown, resource: "post" | "member"): string {
   const parsedId = uuidSchema.safeParse(value);
 
   if (!parsedId.success) {
@@ -103,7 +103,7 @@ function buildPagination(page: number, limit: number, total: number) {
   };
 }
 
-async function findVisiblePost(postId: string) {
+export async function findVisiblePost(postId: string) {
   const [row] = await db
     .select(postRowSelection)
     .from(postsTable)
