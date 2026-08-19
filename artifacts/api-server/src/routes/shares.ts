@@ -127,7 +127,7 @@ router.post(
     try {
       const postId = parseId(request.params.id, "post");
       const { platform } = shareInputSchema.parse(request.body);
-      const post = await findVisiblePost(postId);
+      const post = await findVisiblePost(postId, request.user!.chapter);
 
       if (!post) {
         throw new HttpError(404, "Post not found.");
@@ -160,7 +160,7 @@ router.get(
   async (request, response, next) => {
     try {
       const postId = parseId(request.params.id, "post");
-      const post = await findVisiblePost(postId);
+      const post = await findVisiblePost(postId, request.user!.chapter);
 
       if (!post) {
         throw new HttpError(404, "Post not found.");
@@ -203,6 +203,7 @@ router.get(
       const filters = and(
         eq(sharesTable.sharedById, request.user!.id),
         eq(membersTable.status, "active"),
+        eq(membersTable.chapter, request.user!.chapter),
       );
 
       const [rows, totals] = await Promise.all([
@@ -246,7 +247,7 @@ router.get(
   async (request, response, next) => {
     try {
       const postId = parseId(request.params.id, "post");
-      const post = await findVisiblePost(postId);
+      const post = await findVisiblePost(postId, request.user!.chapter);
 
       if (!post) {
         throw new HttpError(404, "Post not found.");

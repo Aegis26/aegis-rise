@@ -14,6 +14,7 @@ const updateProfileSchema = z
     title: z.string().trim().min(1).max(160).optional(),
     company: z.string().trim().min(1).max(160).optional(),
     bio: z.string().trim().max(2_000).nullable().optional(),
+    profilePictureUrl: z.string().url().max(2_048).nullable().optional(),
     themePreference: z.enum(["light", "dark"]).optional(),
     primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   })
@@ -21,7 +22,7 @@ const updateProfileSchema = z
     message: "Provide at least one profile field to update.",
   });
 
-router.get("/members", requireAuth, async (_request, response, next) => {
+router.get("/members", requireAuth, async (request, response, next) => {
   try {
     const members = await db
       .select({
@@ -32,7 +33,12 @@ router.get("/members", requireAuth, async (_request, response, next) => {
         profilePictureUrl: membersTable.profilePictureUrl,
       })
       .from(membersTable)
-      .where(eq(membersTable.status, "active"))
+      .where(
+        and(
+          eq(membersTable.status, "active"),
+          eq(membersTable.chapter, request.user!.chapter),
+        ),
+      )
       .orderBy(asc(membersTable.name));
 
     response.json({ members });
@@ -130,6 +136,7 @@ router.get("/members/:id", requireAuth, async (request, response, next) => {
         and(
           eq(membersTable.id, memberId.data),
           eq(membersTable.status, "active"),
+          eq(membersTable.chapter, request.user!.chapter),
         ),
       )
       .limit(1);

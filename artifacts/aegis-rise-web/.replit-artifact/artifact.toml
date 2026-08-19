@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Aegis Rise"
+description = "A dark-mode chapter-based professional community where members share posts, collaborate, and grow together, with a secure moderation dashboard for chapter administrators."
+version = "1.0.0"
+id = "artifacts/aegis-rise-web"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23464
+
+[services.development]
+run = "pnpm --filter @workspace/aegis-rise-web run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/aegis-rise-web", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/aegis-rise-web/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23464"
+BASE_PATH = "/"

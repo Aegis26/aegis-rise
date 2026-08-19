@@ -3,20 +3,24 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Aegis Rise member, social feed, and chapter administration API.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
-    description: Health operations
+  - name: auth
+  - name: members
+  - name: posts
+  - name: shares
+  - name: uploads
+  - name: admin
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,13 +28,1097 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /auth/signup:
+    post:
+      operationId: signup
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SignupInput"
+      responses:
+        "201":
+          description: Pending member created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SignupResult"
+  /auth/login:
+    post:
+      operationId: login
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginInput"
+      responses:
+        "200":
+          description: Authenticated member
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LoginResult"
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [auth]
+      responses:
+        "200":
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+  /members/me:
+    get:
+      operationId: getCurrentMember
+      tags: [members]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current member profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+    patch:
+      operationId: updateCurrentMember
+      tags: [members]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MemberUpdate"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberResponse"
+  /members:
+    get:
+      operationId: listMembers
+      tags: [members]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Chapter members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberList"
+  /members/{memberId}:
+    get:
+      operationId: getMember
+      tags: [members]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      responses:
+        "200":
+          description: Member profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicMemberResponse"
+  /members/{memberId}/posts:
+    get:
+      operationId: listMemberPosts
+      tags: [members]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Member posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberPostsResult"
+  /posts:
+    post:
+      operationId: createPost
+      tags: [posts]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PostInput"
+      responses:
+        "201":
+          description: Post created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostResponse"
+  /posts/feed:
+    get:
+      operationId: getFeed
+      tags: [posts]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Chapter feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FeedResult"
+  /posts/{postId}:
+    get:
+      operationId: getPost
+      tags: [posts]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostResponse"
+    delete:
+      operationId: deleteOwnPost
+      tags: [posts]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "204":
+          description: Post deleted
+  /posts/{postId}/share:
+    post:
+      operationId: sharePost
+      tags: [shares]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShareInput"
+      responses:
+        "201":
+          description: Share tracked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareResult"
+  /posts/{postId}/shares:
+    get:
+      operationId: getPostShares
+      tags: [shares]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Post share breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareBreakdown"
+  /posts/{postId}/share-preview:
+    get:
+      operationId: getPostSharePreview
+      tags: [shares]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+        - in: query
+          name: platform
+          schema:
+            type: string
+            enum: [LinkedIn, Instagram, Facebook, TikTok, Direct Link]
+      responses:
+        "200":
+          description: Platform-ready sharing text
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharePreview"
+  /upload/image:
+    post:
+      operationId: uploadImage
+      tags: [uploads]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ImageUpload"
+      responses:
+        "201":
+          description: Processed image uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageUploadResult"
+  /admin/analytics/overview:
+    get:
+      operationId: getAdminOverview
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Chapter overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminOverview"
+  /admin/posts:
+    get:
+      operationId: listAdminPosts
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Chapter"
+        - name: featured
+          in: query
+          schema: { type: boolean }
+        - name: authorId
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Moderatable posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostList"
+  /admin/posts/{postId}/feature:
+    patch:
+      operationId: featurePost
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Post featured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostResponse"
+  /admin/posts/{postId}/unfeature:
+    patch:
+      operationId: unfeaturePost
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      responses:
+        "200":
+          description: Post unfeatured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPostResponse"
+  /admin/posts/{postId}:
+    delete:
+      operationId: deleteAdminPost
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/PostId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationReason"
+      responses:
+        "200":
+          description: Post deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+  /admin/members/all:
+    get:
+      operationId: listAdminMembers
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Chapter"
+        - name: status
+          in: query
+          schema: { type: string, enum: [active, pending, banned] }
+      responses:
+        "200":
+          description: Managed members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMemberList"
+  /admin/members/pending:
+    get:
+      operationId: listPendingMembers
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Pending applications
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingMemberList"
+  /admin/members/{memberId}/approve:
+    patch:
+      operationId: approveMember
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      responses:
+        "200":
+          description: Member approved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberModerationResult"
+  /admin/members/{memberId}/deny:
+    patch:
+      operationId: denyMember
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationReason"
+      responses:
+        "200":
+          description: Member denied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberDenialResult"
+  /admin/members/{memberId}/ban:
+    patch:
+      operationId: banMember
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationReason"
+      responses:
+        "200":
+          description: Member banned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberModerationResult"
+  /admin/members/{memberId}/activity:
+    get:
+      operationId: getMemberActivity
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      responses:
+        "200":
+          description: Member activity
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberActivityResult"
+  /admin/analytics/posts:
+    get:
+      operationId: getPostAnalytics
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Leading posts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PostAnalyticsResult"
+  /admin/analytics/members:
+    get:
+      operationId: getMemberAnalytics
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Leading contributors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberAnalyticsResult"
+  /admin/analytics/shares-timeline:
+    get:
+      operationId: getShareTimeline
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Thirty-day share timeline
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ShareTimelinePoint" }
+  /admin/analytics/platforms:
+    get:
+      operationId: getPlatformAnalytics
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Share platform percentages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlatformAnalytics"
+  /admin/analytics/shares:
+    get:
+      operationId: getShareAnalytics
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Share analytics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareAnalytics"
+  /admin/settings:
+    get:
+      operationId: getChapterSettings
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Chapter settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsResult"
+    patch:
+      operationId: updateChapterSettings
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChapterSettingsInput"
+      responses:
+        "200":
+          description: Settings updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsResult"
+  /admin/guidelines:
+    get:
+      operationId: getChapterGuidelines
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      responses:
+        "200":
+          description: Chapter guidelines
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuidelinesResult"
+    patch:
+      operationId: updateChapterGuidelines
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Chapter"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GuidelinesInput"
+      responses:
+        "200":
+          description: Guidelines updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GuidelinesUpdateResult"
+  /admin/logs:
+    get:
+      operationId: listModerationLogs
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Chapter"
+        - name: action
+          in: query
+          schema:
+            type: string
+            enum: [delete_post, feature_post, unfeature_post, approve_member, deny_member, ban_member, update_settings, update_guidelines]
+      responses:
+        "200":
+          description: Moderation audit history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModerationLogList"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    Chapter:
+      name: chapter
+      in: query
+      required: false
+      schema: { type: string }
+    MemberId:
+      name: memberId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
     HealthStatus:
       type: object
+      required: [status]
+      properties: { status: { type: string } }
+    Message:
+      type: object
+      required: [message]
+      properties: { message: { type: string } }
+    Pagination:
+      type: object
+      required: [page, limit, total, totalPages, hasNextPage, hasPreviousPage]
       properties:
-        status:
-          type: string
-      required:
-        - status
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+        hasNextPage: { type: boolean }
+        hasPreviousPage: { type: boolean }
+    SignupInput:
+      type: object
+      required: [email, password, name, title, company, chapter]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, minLength: 8 }
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+        chapter: { type: string }
+        bio: { type: string }
+        signupSource: { type: string }
+    SignupResult:
+      type: object
+      required: [id, email, name, chapter, status, message]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        chapter: { type: string }
+        status: { type: string }
+        message: { type: string }
+    LoginInput:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+    LoginResult:
+      type: object
+      required: [token, member]
+      properties:
+        token: { type: string }
+        member: { $ref: "#/components/schemas/AuthMember" }
+    AuthMember:
+      type: object
+      required: [id, name, email, role, status]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [member, admin, super_admin] }
+        status: { type: string, enum: [pending, active, banned] }
+    Member:
+      type: object
+      required: [id, email, name, title, company, chapter, themePreference, primaryColor, role, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+        chapter: { type: string }
+        bio: { type: [string, "null"] }
+        profilePictureUrl: { type: [string, "null"], format: uri }
+        themePreference: { type: string, enum: [light, dark] }
+        primaryColor: { type: string }
+        role: { type: string, enum: [member, admin, super_admin] }
+        status: { type: string, enum: [pending, active, banned] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MemberUpdate:
+      type: object
+      properties:
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+        bio: { type: [string, "null"] }
+        profilePictureUrl: { type: [string, "null"], format: uri }
+        themePreference: { type: string, enum: [light, dark] }
+        primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+    MemberResponse:
+      type: object
+      required: [member]
+      properties: { member: { $ref: "#/components/schemas/Member" } }
+    MemberSummary:
+      type: object
+      required: [id, name, title, company]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+        profilePictureUrl: { type: [string, "null"], format: uri }
+    MemberList:
+      type: object
+      required: [members]
+      properties:
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/MemberSummary" }
+    PublicMember:
+      type: object
+      required: [id, name, title, company, themePreference]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+        bio: { type: [string, "null"] }
+        profilePictureUrl: { type: [string, "null"], format: uri }
+        themePreference: { type: string, enum: [light, dark] }
+    PublicMemberResponse:
+      type: object
+      required: [member]
+      properties: { member: { $ref: "#/components/schemas/PublicMember" } }
+    PostAuthor:
+      type: object
+      required: [id, name, title, company, chapter]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+        chapter: { type: string }
+        profilePictureUrl: { type: [string, "null"], format: uri }
+    Post:
+      type: object
+      required: [id, caption, status, isFeatured, createdAt, updatedAt, author, shareCount]
+      properties:
+        id: { type: string, format: uuid }
+        caption: { type: string }
+        imageUrl: { type: [string, "null"], format: uri }
+        status: { type: string, enum: [featured, normal] }
+        isFeatured: { type: boolean }
+        featuredAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        author: { $ref: "#/components/schemas/PostAuthor" }
+        shareCount: { type: integer }
+    PostInput:
+      type: object
+      required: [caption]
+      properties:
+        caption: { type: string, minLength: 1, maxLength: 5000 }
+        imageUrl: { type: [string, "null"], format: uri }
+    PostResponse:
+      type: object
+      required: [post]
+      properties: { post: { $ref: "#/components/schemas/Post" } }
+    FeedResult:
+      type: object
+      required: [posts, pagination]
+      properties:
+        posts:
+          type: array
+          items: { $ref: "#/components/schemas/Post" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+    MemberPostsResult:
+      type: object
+      required: [member, posts, pagination]
+      properties:
+        member: { $ref: "#/components/schemas/PostAuthor" }
+        posts:
+          type: array
+          items: { $ref: "#/components/schemas/Post" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+    ShareInput:
+      type: object
+      required: [platform]
+      properties:
+        platform: { type: string, enum: [LinkedIn, Instagram, Facebook, TikTok, Direct Link] }
+    ShareResult:
+      type: object
+      required: [shareCount, message]
+      properties:
+        shareCount: { type: integer }
+        message: { type: string }
+    ShareBreakdown:
+      type: object
+      required: [totalShares, byPlatform]
+      properties:
+        totalShares: { type: integer }
+        byPlatform:
+          type: object
+          additionalProperties: { type: integer }
+    SharePreview:
+      type: object
+      required: [caption, hashtags, note]
+      properties:
+        caption: { type: string }
+        hashtags:
+          type: array
+          items: { type: string }
+        note: { type: string }
+    ImageUpload:
+      type: object
+      required: [image]
+      properties:
+        image: { type: string, format: binary }
+    ImageUploadResult:
+      type: object
+      required: [url, size, format]
+      properties:
+        url: { type: string, format: uri }
+        size: { type: integer }
+        format: { type: string }
+    AdminOverview:
+      type: object
+      required: [totalMembers, activeMembers, pendingApprovals, bannedMembers, totalPosts, totalShares, joinTrend]
+      properties:
+        totalMembers: { type: integer }
+        activeMembers: { type: integer }
+        pendingApprovals: { type: integer }
+        bannedMembers: { type: integer }
+        totalPosts: { type: integer }
+        totalShares: { type: integer }
+        mostSharedPost: { $ref: "#/components/schemas/MostSharedPost" }
+        topContributor: { $ref: "#/components/schemas/TopContributor" }
+        joinTrend:
+          type: array
+          items: { $ref: "#/components/schemas/TrendPoint" }
+    MostSharedPost:
+      type: [object, "null"]
+      properties:
+        id: { type: string, format: uuid }
+        caption: { type: string }
+        shares: { type: integer }
+    TopContributor:
+      type: [object, "null"]
+      properties:
+        memberId: { type: string, format: uuid }
+        name: { type: string }
+        postCount: { type: integer }
+        shareCount: { type: integer }
+    TrendPoint:
+      type: object
+      required: [date, members]
+      properties:
+        date: { type: string }
+        members: { type: integer }
+    AdminPost:
+      type: object
+      required: [postId, author, caption, shares, createdAt, updatedAt, status]
+      properties:
+        postId: { type: string, format: uuid }
+        author: { $ref: "#/components/schemas/PostAuthor" }
+        caption: { type: string }
+        imageUrl: { type: [string, "null"], format: uri }
+        shares: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        featuredAt: { type: [string, "null"], format: date-time }
+        status: { type: string, enum: [featured, normal] }
+    AdminPostList:
+      type: object
+      required: [posts, pagination]
+      properties:
+        posts:
+          type: array
+          items: { $ref: "#/components/schemas/AdminPost" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+    AdminPostResponse:
+      type: object
+      required: [post]
+      properties: { post: { $ref: "#/components/schemas/AdminPost" } }
+    ModerationReason:
+      type: object
+      properties: { reason: { type: string, maxLength: 1000 } }
+    ManagedMember:
+      type: object
+      required: [id, email, name, title, company, chapter, role, status, postsCount, sharesCount]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+        chapter: { type: string }
+        bio: { type: [string, "null"] }
+        role: { type: string }
+        status: { type: string }
+        signupSource: { type: [string, "null"] }
+        lastLoginAt: { type: [string, "null"], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        postsCount: { type: integer }
+        sharesCount: { type: integer }
+        lastActive: { type: [string, "null"], format: date-time }
+    AdminMemberList:
+      type: object
+      required: [members, pagination]
+      properties:
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/ManagedMember" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+    PendingMember:
+      type: object
+      required: [id, name, email, title, company, chapter, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string }
+        title: { type: string }
+        company: { type: string }
+        chapter: { type: string }
+        bio: { type: [string, "null"] }
+        signupSource: { type: [string, "null"] }
+        createdAt: { type: string, format: date-time }
+    PendingMemberList:
+      type: object
+      required: [members, pagination]
+      properties:
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/PendingMember" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
+    MemberModerationResult:
+      type: object
+      required: [member]
+      properties:
+        member: { $ref: "#/components/schemas/ManagedMember" }
+        notification: { type: object, additionalProperties: true }
+    MemberDenialResult:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string }
+        notification: { type: object, additionalProperties: true }
+    MemberActivityResult:
+      type: object
+      required: [activity]
+      properties:
+        activity:
+          type: object
+          required: [memberId, name, chapter, status, postsCreated, sharesMade]
+          properties:
+            memberId: { type: string, format: uuid }
+            name: { type: string }
+            chapter: { type: string }
+            status: { type: string }
+            postsCreated: { type: integer }
+            sharesMade: { type: integer }
+            lastLoginDate: { type: [string, "null"], format: date-time }
+            joinDate: { type: string, format: date-time }
+    PostAnalyticsResult:
+      type: object
+      required: [posts]
+      properties:
+        posts:
+          type: array
+          items:
+            type: object
+            required: [id, caption, author, shares, createdAt]
+            properties:
+              id: { type: string, format: uuid }
+              caption: { type: string }
+              author: { type: string }
+              shares: { type: integer }
+              image: { type: [string, "null"], format: uri }
+              createdAt: { type: string, format: date-time }
+    MemberAnalyticsResult:
+      type: object
+      required: [members]
+      properties:
+        members:
+          type: array
+          items:
+            type: object
+            required: [memberId, name, chapter, postsCreated, sharesReceived, sharesGiven]
+            properties:
+              memberId: { type: string, format: uuid }
+              name: { type: string }
+              chapter: { type: string }
+              postsCreated: { type: integer }
+              sharesReceived: { type: integer }
+              sharesGiven: { type: integer }
+    ShareTimelinePoint:
+      type: object
+      required: [date, shares, postsShared]
+      properties:
+        date: { type: string }
+        shares: { type: integer }
+        postsShared: { type: integer }
+    PlatformAnalytics:
+      type: object
+      required: [LinkedIn, Instagram, Facebook, TikTok, Direct Link, totalShares]
+      properties:
+        LinkedIn: { type: number }
+        Instagram: { type: number }
+        Facebook: { type: number }
+        TikTok: { type: number }
+        Direct Link: { type: number }
+        totalShares: { type: integer }
+    ShareAnalytics:
+      type: object
+      required: [totalShares, sharesThisMonth, topPostsShared, topSharingShapers, sharesByPlatform, sharesTrend]
+      properties:
+        totalShares: { type: integer }
+        sharesThisMonth: { type: integer }
+        topPostsShared: { type: array, items: { type: object, additionalProperties: true } }
+        topSharingShapers: { type: array, items: { type: object, additionalProperties: true } }
+        sharesByPlatform: { type: object, additionalProperties: { type: integer } }
+        sharesTrend: { type: array, items: { type: object, additionalProperties: true } }
+    ChapterSettings:
+      type: object
+      required: [id, chapterName, primaryColor, secondaryColor, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        chapterName: { type: string }
+        chapterLogoUrl: { type: [string, "null"], format: uri }
+        primaryColor: { type: string }
+        secondaryColor: { type: string }
+        chapterDescription: { type: [string, "null"] }
+        updatedAt: { type: string, format: date-time }
+    SettingsResult:
+      type: object
+      required: [settings]
+      properties: { settings: { $ref: "#/components/schemas/ChapterSettings" } }
+    ChapterSettingsInput:
+      type: object
+      properties:
+        chapterName: { type: string }
+        chapterLogoUrl: { type: [string, "null"], format: uri }
+        primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        secondaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        chapterDescription: { type: [string, "null"] }
+    GuidelinesInput:
+      type: object
+      required: [guidelinesText]
+      properties: { guidelinesText: { type: string, maxLength: 20000 } }
+    GuidelinesResult:
+      type: object
+      required: [chapter, guidelinesText]
+      properties:
+        chapter: { type: string }
+        guidelinesText: { type: string }
+    GuidelinesUpdateResult:
+      allOf:
+        - $ref: "#/components/schemas/GuidelinesResult"
+        - type: object
+          required: [updatedAt]
+          properties: { updatedAt: { type: string, format: date-time } }
+    ModerationLog:
+      type: object
+      required: [id, adminName, action, targetType, targetId, target, chapter, date]
+      properties:
+        id: { type: string, format: uuid }
+        adminId: { type: [string, "null"], format: uuid }
+        adminName: { type: string }
+        action: { type: string }
+        targetType: { type: string }
+        targetId: { type: string, format: uuid }
+        target: { type: string }
+        chapter: { type: string }
+        reason: { type: [string, "null"] }
+        date: { type: string, format: date-time }
+    ModerationLogList:
+      type: object
+      required: [logs, pagination]
+      properties:
+        logs:
+          type: array
+          items: { $ref: "#/components/schemas/ModerationLog" }
+        pagination: { $ref: "#/components/schemas/Pagination" }
 

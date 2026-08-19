@@ -57,6 +57,19 @@ export default defineConfig({
       prettier: true,
       override: {
         zod: {
+          // The workspace currently uses Zod 3. Pin the generator so its
+          // emitted schemas use the matching method syntax.
+          version: 3,
+          // Route handlers own their input validation. Omitting generated
+          // parameter validators also avoids name collisions with the
+          // generated request parameter types.
+          generate: {
+            param: false,
+            query: false,
+            header: false,
+            body: true,
+            response: true,
+          },
           coerce: {
             query: ['boolean', 'number', 'string'],
             param: ['boolean', 'number', 'string'],

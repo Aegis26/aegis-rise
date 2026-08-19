@@ -112,7 +112,7 @@ function buildPagination(page: number, limit: number, total: number) {
   };
 }
 
-export async function findVisiblePost(postId: string) {
+export async function findVisiblePost(postId: string, chapter: string) {
   const [row] = await db
     .select(postRowSelection)
     .from(postsTable)
@@ -122,6 +122,7 @@ export async function findVisiblePost(postId: string) {
       and(
         eq(postsTable.id, postId),
         eq(membersTable.status, "active"),
+        eq(membersTable.chapter, chapter),
       ),
     )
     .groupBy(...postGroupByColumns)
@@ -142,7 +143,7 @@ router.post("/posts", requireAuth, async (request, response, next) => {
       })
       .returning({ id: postsTable.id });
 
-    const post = await findVisiblePost(createdPost.id);
+    const post = await findVisiblePost(createdPost.id, request.user!.chapter);
     if (!post) {
       throw new HttpError(500, "The post was created but could not be loaded.");
     }
@@ -163,7 +164,12 @@ router.get("/posts/feed", requireAuth, async (request, response, next) => {
         .from(postsTable)
         .innerJoin(membersTable, eq(postsTable.authorId, membersTable.id))
         .leftJoin(sharesTable, eq(sharesTable.postId, postsTable.id))
-        .where(eq(membersTable.status, "active"))
+        .where(
+          and(
+            eq(membersTable.status, "active"),
+            eq(membersTable.chapter, request.user!.chapter),
+          ),
+        )
         .groupBy(...postGroupByColumns)
         .orderBy(
           sql`${postsTable.isFeatured} DESC`,
@@ -177,7 +183,12 @@ router.get("/posts/feed", requireAuth, async (request, response, next) => {
         .select({ total: count(postsTable.id) })
         .from(postsTable)
         .innerJoin(membersTable, eq(postsTable.authorId, membersTable.id))
-        .where(eq(membersTable.status, "active")),
+        .where(
+          and(
+            eq(membersTable.status, "active"),
+            eq(membersTable.chapter, request.user!.chapter),
+          ),
+        ),
     ]);
 
     const total = totals[0]?.total ?? 0;
@@ -193,7 +204,7 @@ router.get("/posts/feed", requireAuth, async (request, response, next) => {
 router.get("/posts/:id", requireAuth, async (request, response, next) => {
   try {
     const postId = parseId(request.params.id, "post");
-    const post = await findVisiblePost(postId);
+    const post = await findVisiblePost(postId, request.user!.chapter);
 
     if (!post) {
       throw new HttpError(404, "Post not found.");
@@ -265,6 +276,7 @@ router.get(
           and(
             eq(membersTable.id, memberId),
             eq(membersTable.status, "active"),
+            eq(membersTable.chapter, request.user!.chapter),
           ),
         )
         .limit(1);
@@ -283,6 +295,7 @@ router.get(
             and(
               eq(postsTable.authorId, memberId),
               eq(membersTable.status, "active"),
+              eq(membersTable.chapter, request.user!.chapter),
             ),
           )
           .groupBy(...postGroupByColumns)
@@ -292,7 +305,14 @@ router.get(
         db
           .select({ total: count(postsTable.id) })
           .from(postsTable)
-          .where(eq(postsTable.authorId, memberId)),
+        .innerJoin(membersTable, eq(postsTable.authorId, membersTable.id))
+        .where(
+          and(
+            eq(postsTable.authorId, memberId),
+            eq(membersTable.status, "active"),
+            eq(membersTable.chapter, request.user!.chapter),
+          ),
+        ),
       ]);
 
       const total = totals[0]?.total ?? 0;
