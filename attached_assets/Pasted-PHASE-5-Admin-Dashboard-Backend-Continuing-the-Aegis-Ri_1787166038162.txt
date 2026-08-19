@@ -1,0 +1,152 @@
+PHASE 5: Admin Dashboard Backend
+Continuing the Aegis Rise platform build. PHASE 5: Admin dashboard endpoints and analytics.
+
+CONTEXT: Posts, sharing, and auth are complete. Now adding comprehensive admin tools.
+
+PHASE 5 GOAL: Admin dashboard backend with moderation, analytics, and chapter/platform settings.
+
+NOTE: Admin role is per-chapter. Each chapter has its own admins who manage their chapter's members and posts. Super-admin can manage all chapters.
+
+REQUIREMENTS:
+
+1. Admin moderation endpoints:
+
+GET /api/admin/posts
+- Returns all posts (not just active members' posts)
+- Includes: postId, author, caption (truncated), imageUrl, shares, createdAt, status (featured or normal)
+- Pagination: ?page=1&limit=50
+- Can filter: ?featured=true or ?authorId=...
+- Auth required: admin
+
+PATCH /api/admin/posts/:id/feature
+- Sets post as featured (displays at top of feed for non-admin)
+- Returns updated post
+
+PATCH /api/admin/posts/:id/unfeature
+- Removes featured status
+
+DELETE /api/admin/posts/:id
+- Deletes post (admin moderation)
+- Logs deletion reason (optional): Body { reason: string }
+- Returns success message
+
+2. Member management in admin:
+
+GET /api/admin/members/all
+- Returns all members regardless of status
+- Shows: id, name, email, status (active/pending/banned), posts count, shares count, lastActive
+- Pagination: ?page=1&limit=50
+- Can filter: ?status=active or ?status=pending or ?status=banned
+
+GET /api/admin/members/pending
+- Returns only pending members (awaiting approval)
+- Shows: id, name, email, title, company, bio, createdAt, signupSource (optional)
+
+PATCH /api/admin/members/:id/approve
+- Sets status='active'
+- Sends confirmation email to member
+- Returns updated member
+
+PATCH /api/admin/members/:id/deny
+- Deletes member record
+- Sends rejection email (optional)
+
+PATCH /api/admin/members/:id/ban
+- Sets status='banned'
+- Logs ban reason
+- Returns updated member
+
+GET /api/admin/members/:id/activity
+- Returns member's activity: posts created, shares made, last login date, joinDate
+- Auth required: admin
+
+3. Chapter settings:
+
+GET /api/admin/settings
+- Returns chapter config: name, logo, colors, description
+- Auth required: admin
+
+PATCH /api/admin/settings
+- Body: { chapterName, chapterLogoUrl, primaryColor, secondaryColor, chapterDescription }
+- Updates Chapter Config table
+- Returns updated settings
+
+GET /api/admin/guidelines
+- Returns content guidelines (stored as plain text or in database)
+- Auth required: admin (for editing), members (for viewing)
+
+PATCH /api/admin/guidelines
+- Body: { guidelinesText }
+- Updates content guidelines
+- Auth required: admin
+
+4. Analytics endpoints:
+
+GET /api/admin/analytics/overview
+- Returns dashboard stats:
+  - totalMembers (all statuses)
+  - activeMembers
+  - pendingApprovals
+  - bannedMembers
+  - totalPosts
+  - totalShares
+  - mostSharedPost { id, caption, shares }
+  - topContributor { memberId, name, postCount, shareCount }
+  - joinTrend (members joined per day, last 30 days)
+
+GET /api/admin/analytics/posts
+- Top 20 posts by share count
+- Returns: { id, caption, author, shares, image, createdAt }
+
+GET /api/admin/analytics/members
+- Top 20 members by:
+  - Posts created
+  - Shares received
+  - Shares given
+- Returns leaderboard-style data
+
+GET /api/admin/analytics/shares-timeline
+- Share count per day for last 30 days
+- Returns: [ { date, shares, postsShared }, ... ]
+
+GET /api/admin/analytics/platforms
+- Breakdown of shares by platform
+- Returns: { LinkedIn: X%, Instagram: Y%, ... }
+
+5. Logging/audit:
+
+Add to database (Phase 1 schema):
+- ModActions table:
+  - id, adminId, actionType (delete_post, ban_member, approve_member), targetId, reason, createdAt
+
+When admin takes action (delete post, ban member, etc.), log it:
+INSERT INTO ModActions (adminId, actionType, targetId, reason, createdAt)
+
+GET /api/admin/logs
+- Returns recent moderation actions
+- Pagination: ?page=1&limit=50
+- Shows: admin name, action, target, reason, date
+
+6. Error handling:
+- 401: Unauthorized
+- 403: Forbidden (not admin)
+- 404: Resource not found
+- 500: Server error
+
+7. Test endpoints:
+- GET /api/admin/posts - see all posts
+- PATCH /api/admin/posts/:id/feature - feature a post
+- GET /api/admin/members/pending - see pending approvals
+- PATCH /api/admin/members/:id/approve - approve member
+- GET /api/admin/analytics/overview - see dashboard stats
+- GET /api/admin/settings - view chapter config
+
+DELIVERABLES:
+- All admin endpoints functional
+- Moderation actions logged
+- Analytics calculations working
+- Chapter settings editable
+- Content guidelines viewable/editable
+- All endpoints secured with admin auth
+
+When complete, confirm admin can view stats, moderate content, and manage members.
