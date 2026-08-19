@@ -1,2 +1,3 @@
 - [Drizzle migrations](drizzle-migrations.md) — keep migration output relative and initialize the Drizzle journal before first generation.
 - [Password auth rollout](auth-rollout.md) — legacy members need a secure credential-setup path, not only a nullable hash migration.
+- [Image upload safety](image-upload-safety.md) — keep untrusted image work bounded; animated GIFs are flattened to a first frame before storage.

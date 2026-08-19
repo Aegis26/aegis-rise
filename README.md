@@ -17,8 +17,10 @@ The API listens on `PORT` (the workspace workflow supplies this automatically). 
 - `DATABASE_URL` — PostgreSQL connection string.
 - `JWT_SECRET` — required signing secret for Phase 2 authentication tokens.
 - `CLOUDFLARE_ACCOUNT_ID` — Cloudflare account ID for R2.
-- `CLOUDFLARE_API_TOKEN` — Cloudflare API token for R2.
+- `R2_ACCESS_KEY_ID` — R2 S3 API access key ID.
+- `R2_SECRET_ACCESS_KEY` — R2 S3 API secret access key.
 - `R2_BUCKET_NAME` — R2 bucket used for image storage.
+- `R2_PUBLIC_URL` — public R2 development URL or custom-domain base URL.
 - `NODE_ENV` — `development` or `production`.
 - `PORT` — server port; defaults are supplied by the workspace workflow.
 
@@ -51,3 +53,16 @@ WHERE email = 'administrator@example.com';
 ```
 
 Replace the email address with the intended administrator's email. All later approvals use the authenticated admin endpoints.
+
+## Media uploads and posts
+
+All media and post endpoints require a bearer token for an active member.
+
+- `POST /api/upload/image` accepts one multipart field named `image`. JPG, PNG, and GIF files must be smaller than 5 MB. Images are resized to at most 800 pixels wide, stripped of metadata, and stored in R2. Animated GIFs are stored as a safe, static first-frame GIF.
+- `POST /api/posts` creates a post from a required `caption` and optional `imageUrl`.
+- `DELETE /api/posts/:id` deletes a post owned by the authenticated member.
+- `GET /api/posts/feed?page=1&limit=20` returns active-member posts with author details, share counts, and pagination.
+- `GET /api/posts/:id` returns one visible post.
+- `GET /api/members/:id/posts?page=1&limit=20` returns an active member's posts with pagination.
+
+Pagination limits are bounded to 1–100 items per page.
