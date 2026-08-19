@@ -2,3 +2,4 @@
 - [Password auth rollout](auth-rollout.md) — legacy members need a secure credential-setup path, not only a nullable hash migration.
 - [Image upload safety](image-upload-safety.md) — keep untrusted image work bounded; animated GIFs are flattened to a first frame before storage.
 - [Share preview integrity](share-preview-integrity.md) — preserve mandatory attribution, links, and hashtags under platform length limits.
+- [Chapter rename isolation](chapter-rename-isolation.md) — serialize every chapter-scoped write with rename; reserve old names so mutable labels cannot cross tenant boundaries.

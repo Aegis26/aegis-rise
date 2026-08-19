@@ -1,8 +1,8 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { z } from "zod/v4";
-import { db, membersTable } from "../db";
+import { chapterConfigsTable, db, membersTable } from "../db";
 import { createAccessToken } from "../middleware/auth";
 import { HttpError } from "../utils/errors";
 
@@ -24,6 +24,7 @@ const signupSchema = z.object({
   company: z.string().trim().min(1).max(160),
   chapter: z.string().trim().min(1).max(160),
   bio: z.string().trim().max(2_000).optional(),
+  signupSource: z.string().trim().min(1).max(160).optional(),
 });
 
 const loginSchema = z.object({
@@ -47,28 +48,81 @@ router.post("/auth/signup", async (request, response, next) => {
     }
 
     const passwordHash = await bcrypt.hash(input.password, 12);
-    const [member] = await db
-      .insert(membersTable)
-      .values({
-        email,
-        passwordHash,
-        name: input.name,
-        title: input.title,
-        company: input.company,
-        chapter: input.chapter,
-        bio: input.bio,
-        status: "pending",
-      })
-      .returning({
-        id: membersTable.id,
-        email: membersTable.email,
-        name: membersTable.name,
-        chapter: membersTable.chapter,
-        status: membersTable.status,
-      });
+    const signupResult = await db.transaction(async (transaction) => {
+      await transaction.execute(sql`
+        SELECT pg_advisory_xact_lock(
+          hashtextextended(${input.chapter}, 0::bigint)
+        )
+      `);
+
+      const [chapterConfig] = await transaction
+        .select({
+          id: chapterConfigsTable.id,
+          nameReserved: chapterConfigsTable.nameReserved,
+          signupGuardPending: chapterConfigsTable.signupGuardPending,
+        })
+        .from(chapterConfigsTable)
+        .where(eq(chapterConfigsTable.chapterName, input.chapter))
+        .limit(1);
+      if (chapterConfig?.nameReserved) {
+        return { status: "reserved" as const };
+      }
+      if (chapterConfig?.signupGuardPending) {
+        await transaction
+          .update(chapterConfigsTable)
+          .set({ signupGuardPending: false })
+          .where(eq(chapterConfigsTable.id, chapterConfig.id));
+
+        return { status: "retry" as const };
+      }
+
+      const [duplicateMember] = await transaction
+        .select({ id: membersTable.id })
+        .from(membersTable)
+        .where(eq(membersTable.email, email))
+        .limit(1);
+      if (duplicateMember) {
+        throw new HttpError(409, "An account with this email already exists.");
+      }
+
+      const [createdMember] = await transaction
+        .insert(membersTable)
+        .values({
+          email,
+          passwordHash,
+          name: input.name,
+          title: input.title,
+          company: input.company,
+          chapter: input.chapter,
+          bio: input.bio,
+          signupSource: input.signupSource,
+          status: "pending",
+        })
+        .returning({
+          id: membersTable.id,
+          email: membersTable.email,
+          name: membersTable.name,
+          chapter: membersTable.chapter,
+          status: membersTable.status,
+        });
+
+      return { status: "created" as const, member: createdMember };
+    });
+    if (signupResult.status === "retry") {
+      throw new HttpError(
+        409,
+        "The selected chapter was recently renamed. Please confirm it and try again.",
+      );
+    }
+    if (signupResult.status === "reserved") {
+      throw new HttpError(
+        409,
+        "The selected chapter name is no longer available.",
+      );
+    }
 
     response.status(201).json({
-      ...member,
+      ...signupResult.member,
       message: "Pending admin approval",
     });
   } catch (error) {
@@ -102,6 +156,12 @@ router.post("/auth/login", async (request, response, next) => {
           : "Your account is not eligible for access.",
       );
     }
+
+    const lastLoginAt = new Date();
+    await db
+      .update(membersTable)
+      .set({ lastLoginAt, updatedAt: lastLoginAt })
+      .where(eq(membersTable.id, member.id));
 
     const token = createAccessToken(member);
     response.json({

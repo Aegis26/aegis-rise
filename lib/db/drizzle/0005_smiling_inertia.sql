@@ -1,0 +1,1 @@
+ALTER TABLE "chapter_configs" ADD COLUMN "signup_guard_pending" boolean DEFAULT false NOT NULL;

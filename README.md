@@ -55,6 +55,8 @@ WHERE email = 'administrator@example.com';
 
 Replace the email address with the intended administrator's email. All later approvals use the authenticated admin endpoints.
 
+Administrators are chapter-scoped. Set `role = 'super_admin'` only for trusted operators who need access across all chapters. Super-admin endpoints accept an optional `?chapter=...` filter; regular administrators are always restricted to their own chapter.
+
 ## Media uploads and posts
 
 All media and post endpoints require a bearer token for an active member.
@@ -79,3 +81,38 @@ Active members can record and format shares for LinkedIn, Instagram, Facebook, T
 - `GET /api/admin/analytics/shares` returns all-time/monthly totals, top shared posts, top sharing members, platform totals, and a 30-day daily trend for administrators.
 
 Share previews are truncated to the supported platform character limit. Animated GIFs and share analytics are available through the API; a frontend share button can use these endpoints directly.
+
+## Admin dashboard backend
+
+All routes below require an active administrator unless noted otherwise. Regular administrators only see and mutate resources from their own chapter.
+
+### Moderation and members
+
+- `GET /api/admin/posts?page=1&limit=50&featured=true&authorId=...` lists all chapter posts, including posts from pending or banned authors.
+- `PATCH /api/admin/posts/:id/feature` and `/unfeature` update featured status. Featured posts appear first in the member feed.
+- `DELETE /api/admin/posts/:id` accepts an optional `{ "reason": "..." }` and records an audit action.
+- `GET /api/admin/members/all?page=1&limit=50&status=active` lists all chapter members with post/share counts and last login activity.
+- `GET /api/admin/members/pending` lists pending applications. `/api/admin/pending-members` remains available as a compatibility alias.
+- `PATCH /api/admin/members/:id/approve`, `/deny`, and `/ban` perform member moderation and record audit actions.
+- `GET /api/admin/members/:id/activity` returns post, share, login, and join activity.
+
+Approval and rejection notification functions currently return `{ "success": true, "delivery": "deferred" }`; no external email is sent in the MVP.
+
+### Chapter settings and guidelines
+
+- `GET` and `PATCH /api/admin/settings` read or update chapter branding and descriptions.
+- `GET /api/admin/guidelines` is available to any active member for their chapter.
+- `PATCH /api/admin/guidelines` updates chapter guidelines and requires administrator access.
+
+Changing `chapterName` moves the chapter configuration, members, and audit history atomically. The former name becomes permanently reserved so it cannot be claimed by another chapter. To prevent a concurrent signup from silently joining a chapter during a rename, the first signup for the new name receives a `409` confirmation response and succeeds when retried. Super-admins can target a chapter with `?chapter=...`.
+
+### Analytics and audit
+
+- `GET /api/admin/analytics/overview`
+- `GET /api/admin/analytics/posts`
+- `GET /api/admin/analytics/members`
+- `GET /api/admin/analytics/shares-timeline`
+- `GET /api/admin/analytics/platforms`
+- `GET /api/admin/logs?page=1&limit=50&action=ban_member`
+
+Trend endpoints return exactly 30 UTC date buckets, including zero-activity days. Platform analytics always include all five supported share platforms.

@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db, membersTable, postsTable, sharesTable } from "../db";
 import { requireAuth } from "../middleware/auth";
@@ -22,6 +22,8 @@ const postRowSelection = {
   authorId: postsTable.authorId,
   caption: postsTable.caption,
   imageUrl: postsTable.imageUrl,
+  isFeatured: postsTable.isFeatured,
+  featuredAt: postsTable.featuredAt,
   createdAt: postsTable.createdAt,
   updatedAt: postsTable.updatedAt,
   authorName: membersTable.name,
@@ -37,6 +39,8 @@ const postGroupByColumns = [
   postsTable.authorId,
   postsTable.caption,
   postsTable.imageUrl,
+  postsTable.isFeatured,
+  postsTable.featuredAt,
   postsTable.createdAt,
   postsTable.updatedAt,
   membersTable.name,
@@ -51,6 +55,8 @@ interface PostRow {
   authorId: string;
   caption: string;
   imageUrl: string | null;
+  isFeatured: boolean;
+  featuredAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   authorName: string;
@@ -66,6 +72,9 @@ function serializePost(row: PostRow) {
     id: row.id,
     caption: row.caption,
     imageUrl: row.imageUrl,
+    status: row.isFeatured ? "featured" : "normal",
+    isFeatured: row.isFeatured,
+    featuredAt: row.featuredAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     author: {
@@ -156,7 +165,12 @@ router.get("/posts/feed", requireAuth, async (request, response, next) => {
         .leftJoin(sharesTable, eq(sharesTable.postId, postsTable.id))
         .where(eq(membersTable.status, "active"))
         .groupBy(...postGroupByColumns)
-        .orderBy(desc(postsTable.createdAt), desc(postsTable.id))
+        .orderBy(
+          sql`${postsTable.isFeatured} DESC`,
+          sql`${postsTable.featuredAt} DESC NULLS LAST`,
+          desc(postsTable.createdAt),
+          desc(postsTable.id),
+        )
         .limit(limit)
         .offset(offset),
       db

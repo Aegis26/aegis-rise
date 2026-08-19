@@ -1,0 +1,1 @@
+ALTER TABLE "chapter_configs" ADD COLUMN "name_reserved" boolean DEFAULT false NOT NULL;

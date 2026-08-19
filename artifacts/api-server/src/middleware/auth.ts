@@ -6,7 +6,7 @@ import { HttpError } from "../utils/errors";
 
 export type AuthenticatedUser = Pick<
   Member,
-  "id" | "email" | "name" | "role" | "status"
+  "id" | "email" | "name" | "chapter" | "role" | "status"
 >;
 
 declare global {
@@ -60,6 +60,7 @@ async function authenticate(request: Request): Promise<AuthenticatedUser> {
       id: membersTable.id,
       email: membersTable.email,
       name: membersTable.name,
+      chapter: membersTable.chapter,
       role: membersTable.role,
       status: membersTable.status,
     })
@@ -96,7 +97,7 @@ export const requireAuth = verifyToken;
 export const requireAdmin: RequestHandler = (request, _response, next) => {
   void authenticate(request)
     .then((member) => {
-      if (member.role !== "admin") {
+      if (member.role !== "admin" && member.role !== "super_admin") {
         throw new HttpError(403, "Administrator access is required.");
       }
 

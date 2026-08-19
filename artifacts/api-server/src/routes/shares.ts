@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { and, asc, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import {
   db,
@@ -17,12 +17,19 @@ import {
 } from "../lib/share-formatting";
 import { findVisiblePost, paginationSchema, parseId } from "./posts";
 import { HttpError } from "../utils/errors";
+import {
+  optionalChapterSchema,
+  resolveChapterScope,
+} from "./admin/shared";
 
 const router: IRouter = Router();
 const shareInputSchema = z.object({
   platform: z.enum(sharePlatforms),
 });
 const previewPlatformSchema = z.enum(sharePlatforms);
+const adminShareAnalyticsQuerySchema = z.object({
+  chapter: optionalChapterSchema,
+});
 
 function getPostLink(request: Request, postId: string): string {
   const configuredBaseUrl = process.env.APP_BASE_URL?.trim();
@@ -272,8 +279,11 @@ router.get(
 router.get(
   "/admin/analytics/shares",
   requireAdmin,
-  async (_request, response, next) => {
+  async (request, response, next) => {
     try {
+      const { chapter: requestedChapter } =
+        adminShareAnalyticsQuerySchema.parse(request.query);
+      const chapter = resolveChapterScope(request.user!, requestedChapter);
       const now = new Date();
       const monthStart = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1),
@@ -281,70 +291,128 @@ router.get(
       const trendStart = new Date(
         Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29),
       );
-      const dayExpression = sql<string>`to_char(date_trunc('day', ${sharesTable.createdAt} AT TIME ZONE 'UTC'), 'YYYY-MM-DD')`;
+      const chapterWhere = chapter
+        ? sql`WHERE post_author.chapter = ${chapter} AND sharing_member.chapter = ${chapter}`
+        : sql`WHERE sharing_member.chapter = post_author.chapter`;
+      const monthWhere = chapter
+        ? sql`WHERE post_author.chapter = ${chapter} AND sharing_member.chapter = ${chapter} AND s.created_at >= ${monthStart}`
+        : sql`WHERE sharing_member.chapter = post_author.chapter AND s.created_at >= ${monthStart}`;
+      const trendWhere = chapter
+        ? sql`WHERE post_author.chapter = ${chapter} AND sharing_member.chapter = ${chapter} AND s.created_at >= ${trendStart}`
+        : sql`WHERE sharing_member.chapter = post_author.chapter AND s.created_at >= ${trendStart}`;
+
+      type TotalRow = { total_shares: number };
+      type MonthRow = { shares_this_month: number };
+      type TopPostRow = {
+        post_id: string;
+        post_caption: string;
+        post_author: string;
+        share_count: number;
+      };
+      type TopShaperRow = {
+        member_id: string;
+        name: string;
+        share_count: number;
+      };
+      type PlatformRow = {
+        platform: SharePlatform;
+        share_count: number;
+      };
+      type TrendRow = { date: string; share_count: number };
 
       const [
-        totalRows,
-        monthRows,
-        topPostRows,
-        topShaperRows,
-        platformRows,
-        trendRows,
+        totalResult,
+        monthResult,
+        topPostResult,
+        topShaperResult,
+        platformResult,
+        trendResult,
       ] = await Promise.all([
-        db.select({ totalShares: count(sharesTable.id) }).from(sharesTable),
-        db
-          .select({ sharesThisMonth: count(sharesTable.id) })
-          .from(sharesTable)
-          .where(gte(sharesTable.createdAt, monthStart)),
-        db
-          .select({
-            postId: postsTable.id,
-            postCaption: postsTable.caption,
-            postAuthor: membersTable.name,
-            shareCount: count(sharesTable.id),
-          })
-          .from(sharesTable)
-          .innerJoin(postsTable, eq(sharesTable.postId, postsTable.id))
-          .innerJoin(membersTable, eq(postsTable.authorId, membersTable.id))
-          .groupBy(postsTable.id, postsTable.caption, membersTable.name)
-          .orderBy(desc(count(sharesTable.id)), asc(postsTable.id))
-          .limit(10),
-        db
-          .select({
-            memberId: membersTable.id,
-            name: membersTable.name,
-            shareCount: count(sharesTable.id),
-          })
-          .from(sharesTable)
-          .innerJoin(membersTable, eq(sharesTable.sharedById, membersTable.id))
-          .groupBy(membersTable.id, membersTable.name)
-          .orderBy(desc(count(sharesTable.id)), asc(membersTable.id))
-          .limit(10),
-        db
-          .select({
-            platform: sharesTable.platform,
-            shareCount: count(sharesTable.id),
-          })
-          .from(sharesTable)
-          .groupBy(sharesTable.platform),
-        db
-          .select({
-            date: dayExpression,
-            shareCount: count(sharesTable.id),
-          })
-          .from(sharesTable)
-          .where(gte(sharesTable.createdAt, trendStart))
-          .groupBy(dayExpression)
-          .orderBy(asc(dayExpression)),
+        db.execute(sql<TotalRow>`
+          SELECT count(s.id)::int AS total_shares
+          FROM shares s
+          INNER JOIN posts p ON p.id = s.post_id
+          INNER JOIN members post_author ON post_author.id = p.author_id
+          INNER JOIN members sharing_member ON sharing_member.id = s.shared_by_id
+          ${chapterWhere}
+        `),
+        db.execute(sql<MonthRow>`
+          SELECT count(s.id)::int AS shares_this_month
+          FROM shares s
+          INNER JOIN posts p ON p.id = s.post_id
+          INNER JOIN members post_author ON post_author.id = p.author_id
+          INNER JOIN members sharing_member ON sharing_member.id = s.shared_by_id
+          ${monthWhere}
+        `),
+        db.execute(sql<TopPostRow>`
+          SELECT
+            p.id AS post_id,
+            p.caption AS post_caption,
+            post_author.name AS post_author,
+            count(s.id)::int AS share_count
+          FROM shares s
+          INNER JOIN posts p ON p.id = s.post_id
+          INNER JOIN members post_author ON post_author.id = p.author_id
+          INNER JOIN members sharing_member ON sharing_member.id = s.shared_by_id
+          ${chapterWhere}
+          GROUP BY p.id, p.caption, post_author.name
+          ORDER BY count(s.id) DESC, p.id ASC
+          LIMIT 10
+        `),
+        db.execute(sql<TopShaperRow>`
+          SELECT
+            sharing_member.id AS member_id,
+            sharing_member.name,
+            count(s.id)::int AS share_count
+          FROM shares s
+          INNER JOIN posts p ON p.id = s.post_id
+          INNER JOIN members post_author ON post_author.id = p.author_id
+          INNER JOIN members sharing_member ON sharing_member.id = s.shared_by_id
+          ${chapterWhere}
+          GROUP BY sharing_member.id, sharing_member.name
+          ORDER BY count(s.id) DESC, sharing_member.id ASC
+          LIMIT 10
+        `),
+        db.execute(sql<PlatformRow>`
+          SELECT s.platform, count(s.id)::int AS share_count
+          FROM shares s
+          INNER JOIN posts p ON p.id = s.post_id
+          INNER JOIN members post_author ON post_author.id = p.author_id
+          INNER JOIN members sharing_member ON sharing_member.id = s.shared_by_id
+          ${chapterWhere}
+          GROUP BY s.platform
+        `),
+        db.execute(sql<TrendRow>`
+          SELECT
+            to_char(
+              date_trunc('day', s.created_at AT TIME ZONE 'UTC'),
+              'YYYY-MM-DD'
+            ) AS date,
+            count(s.id)::int AS share_count
+          FROM shares s
+          INNER JOIN posts p ON p.id = s.post_id
+          INNER JOIN members post_author ON post_author.id = p.author_id
+          INNER JOIN members sharing_member ON sharing_member.id = s.shared_by_id
+          ${trendWhere}
+          GROUP BY date
+          ORDER BY date ASC
+        `),
       ]);
+      const totalRows = totalResult.rows as unknown as TotalRow[];
+      const monthRows = monthResult.rows as unknown as MonthRow[];
+      const topPostRows = topPostResult.rows as unknown as TopPostRow[];
+      const topShaperRows =
+        topShaperResult.rows as unknown as TopShaperRow[];
+      const platformRows = platformResult.rows as unknown as PlatformRow[];
+      const trendRows = trendResult.rows as unknown as TrendRow[];
 
       const sharesByPlatform = emptyPlatformBreakdown();
       for (const row of platformRows) {
-        sharesByPlatform[row.platform] = Number(row.shareCount);
+        sharesByPlatform[row.platform] = Number(row.share_count);
       }
 
       const trendByDate = new Map(
-        trendRows.map((row) => [row.date, Number(row.shareCount)]),
+        trendRows.map((row) => [row.date, Number(row.share_count)]),
       );
       const sharesTrend = Array.from({ length: 30 }, (_, index) => {
         const date = new Date(
@@ -364,15 +432,18 @@ router.get(
       });
 
       response.json({
-        totalShares: Number(totalRows[0]?.totalShares ?? 0),
-        sharesThisMonth: Number(monthRows[0]?.sharesThisMonth ?? 0),
+        totalShares: Number(totalRows[0]?.total_shares ?? 0),
+        sharesThisMonth: Number(monthRows[0]?.shares_this_month ?? 0),
         topPostsShared: topPostRows.map((row) => ({
-          ...row,
-          shareCount: Number(row.shareCount),
+          postId: row.post_id,
+          postCaption: row.post_caption,
+          postAuthor: row.post_author,
+          shareCount: Number(row.share_count),
         })),
         topSharingShapers: topShaperRows.map((row) => ({
-          ...row,
-          shareCount: Number(row.shareCount),
+          memberId: row.member_id,
+          name: row.name,
+          shareCount: Number(row.share_count),
         })),
         sharesByPlatform,
         sharesTrend,
