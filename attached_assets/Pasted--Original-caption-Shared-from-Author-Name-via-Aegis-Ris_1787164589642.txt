@@ -1,0 +1,62 @@
+[Original caption]
+Shared from [Author Name] via Aegis Rise 🚀 [Chapter Name] - Connect. Collaborate. Grow. Learn more: [link to post] #AegisRise #NetworkingWorks
+
+INSTAGRAM:
+[Original caption]
+Shared from @[author-name] via Aegis Rise 🚀 [Chapter Name] #AegisRise
+
+FACEBOOK:
+[Original caption]
+Shared from [Author Name] via Aegis Rise Check out more from [Chapter Name]: [link]
+
+TIKTOK:
+[Original caption]
+Shared from [Author Name] via Aegis Rise 🚀 [Chapter Name]
+
+DIRECT LINK:
+[Original caption]
+View on Aegis Rise: [full link to post] [Chapter Name]
+
+3. Helper function formatShareText():
+- Takes: post object, platform name, author name
+- Returns: formatted string ready to copy-paste
+- Handles character limits per platform (LinkedIn 3000, Twitter 280, etc.)
+- Adds platform-specific hashtags
+
+4. Share analytics for admin:
+
+GET /api/admin/analytics/shares
+- Returns:
+  - totalShares (all time)
+  - sharesThisMonth
+  - topPostsShared (top 10 posts by share count)
+  - topSharingShapers (top 10 members who shared the most)
+  - sharesByPlatform (breakdown: LinkedIn, Instagram, Facebook, TikTok, Direct)
+  - sharesTrend (shares per day for last 30 days)
+- Auth required: admin
+
+5. Database queries:
+- Shares table already in schema
+- Add index on postId and sharedById for faster queries
+- Update feed query to include shareCount in each post
+
+6. Error handling:
+- 400: Invalid platform
+- 401: Unauthorized
+- 404: Post not found
+- 500: Database error
+
+7. Test endpoints:
+- POST /api/posts/:id/share - share post to different platforms
+- GET /api/posts/:id/shares - see share count
+- GET /api/posts/:id/share-preview - get formatted text for platform
+- GET /api/admin/analytics/shares - view share analytics
+
+DELIVERABLES:
+- Share tracking for all platforms
+- Share preview endpoint returns properly formatted text
+- Admin can see share analytics
+- Share counts display correctly on feed
+- All endpoints tested and working
+
+When complete, confirm you can share posts and see share counts tracked by platform.

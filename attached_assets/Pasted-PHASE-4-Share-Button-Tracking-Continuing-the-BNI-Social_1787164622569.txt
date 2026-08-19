@@ -1,0 +1,104 @@
+PHASE 4: Share Button & Tracking
+Continuing the BNI Social Platform build. PHASE 4: Share functionality and social media formatting.
+
+CONTEXT: Posts and feed are working. Now adding share tracking and social media pre-formatting.
+
+PHASE 4 GOAL: Members can share posts to social media platforms with pre-formatted text. Shares are tracked by post.
+
+REQUIREMENTS:
+
+1. Share endpoint:
+
+POST /api/posts/:id/share
+- Body: { platform: 'LinkedIn' | 'Instagram' | 'Facebook' | 'TikTok' | 'Direct Link' }
+- Creates record in Shares table
+- sharedById = req.user.id
+- postId = :id
+- Records platform
+- Returns: { shareCount: number, message: 'Shared successfully' }
+- Auth required
+
+GET /api/posts/:id/shares
+- Returns share count and breakdown by platform for that post
+- Returns: { totalShares: number, byPlatform: { LinkedIn: 2, Instagram: 1, ... } }
+- Auth required
+
+GET /api/members/me/shares
+- Returns all shares created by current user (their share history)
+- Pagination: ?page=1&limit=20
+- Returns: { date, platform, postId, postAuthor, postCaption }
+- Auth required
+
+2. Share formatting endpoint:
+
+GET /api/posts/:id/share-preview
+- Returns pre-formatted text for social media
+- Query param: ?platform=LinkedIn (defaults to generic)
+- Returns object:
+{ caption: string (the formatted text), hashtags: string (optional hashtags for platform), note: string (instructions for user) }
+
+Format templates by platform:
+
+LINKEDIN:
+[Original caption]
+Shared from [Author Name] via Aegis Rise 🚀 [Chapter Name] - Connect. Collaborate. Grow. Learn more: [link to post] #AegisRise #NetworkingWorks
+
+INSTAGRAM:
+[Original caption]
+Shared from @[author-name] via Aegis Rise 🚀 [Chapter Name] #AegisRise
+
+FACEBOOK:
+[Original caption]
+Shared from [Author Name] via Aegis Rise Check out more from [Chapter Name]: [link]
+
+TIKTOK:
+[Original caption]
+Shared from [Author Name] via Aegis Rise 🚀 [Chapter Name]
+
+DIRECT LINK:
+[Original caption]
+View on Aegis Rise: [full link to post] [Chapter Name]
+
+3. Helper function formatShareText():
+- Takes: post object, platform name, author name
+- Returns: formatted string ready to copy-paste
+- Handles character limits per platform (LinkedIn 3000, Twitter 280, etc.)
+- Adds platform-specific hashtags
+
+4. Share analytics for admin:
+
+GET /api/admin/analytics/shares
+- Returns:
+  - totalShares (all time)
+  - sharesThisMonth
+  - topPostsShared (top 10 posts by share count)
+  - topSharingShapers (top 10 members who shared the most)
+  - sharesByPlatform (breakdown: LinkedIn, Instagram, Facebook, TikTok, Direct)
+  - sharesTrend (shares per day for last 30 days)
+- Auth required: admin
+
+5. Database queries:
+- Shares table already in schema
+- Add index on postId and sharedById for faster queries
+- Update feed query to include shareCount in each post
+
+6. Error handling:
+- 400: Invalid platform
+- 401: Unauthorized
+- 404: Post not found
+- 500: Database error
+
+7. Test endpoints:
+- POST /api/posts/:id/share - share post to different platforms
+- GET /api/posts/:id/shares - see share count
+- GET /api/posts/:id/share-preview - get formatted text for platform
+- GET /api/admin/analytics/shares - view share analytics
+
+DELIVERABLES:
+- Share tracking for all platforms
+- Share preview endpoint returns properly formatted text
+- Admin can see share analytics
+- Share counts display correctly on feed
+- All endpoints tested and working
+
+When complete, confirm you can share posts and see share counts tracked by platform.
