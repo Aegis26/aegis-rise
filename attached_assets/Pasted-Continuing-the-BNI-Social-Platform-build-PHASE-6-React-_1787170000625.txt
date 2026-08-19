@@ -1,0 +1,181 @@
+Continuing the BNI Social Platform build. PHASE 6: React frontend components and pages.
+
+CONTEXT: Entire backend is complete and tested. Now building frontend.
+
+PHASE 6 GOAL: Complete React frontend with pages for feed, profiles, post creation, and admin dashboard.
+
+STACK:
+- React 18
+- Tailwind CSS (dark mode default)
+- React Router v6
+- Axios for API calls
+- useState/useEffect hooks
+
+SETUP:
+- Create /src/frontend folder for React code
+- Install: react, react-dom, react-router-dom, axios, tailwindcss
+- Create Tailwind config with dark mode enabled
+
+DIRECTORY STRUCTURE:
+/src/frontend/
+  /components/
+    Feed.tsx
+    PostCard.tsx
+    PostCreationModal.tsx
+    ProfilePage.tsx
+    ProfileCard.tsx
+    Navigation.tsx
+    ShareButton.tsx
+  /pages/
+    LoginPage.tsx
+    SignupPage.tsx
+    FeedPage.tsx
+    ProfilePage.tsx
+    AdminDashboard.tsx
+    SettingsPage.tsx
+  /hooks/
+    useAuth.ts (auth context/hook)
+    useFetch.ts (API fetching)
+  /utils/
+    api.ts (axios instance with auth headers)
+    formatters.ts (format dates, text)
+  /types/
+    index.ts (TypeScript types from backend)
+  App.tsx
+  index.css
+
+PAGES TO BUILD:
+
+1. LoginPage.tsx
+- Email + password form
+- Error handling (invalid credentials)
+- Link to signup
+- Redirects to /feed on success
+
+2. SignupPage.tsx
+- Header: Aegis Rise logo, "Connect. Collaborate. Grow." tagline
+- Form fields: email, name, title, company, chapter name, bio
+- Chapter field is a dropdown/text input (BNI Game Changers, Rotary, Chamber, etc. or custom)
+- Password field (for future password feature, keep empty for now)
+- Submit creates member with status=pending
+- Shows message: "Thank you! Your signup is pending admin approval from your chapter."
+- Link back to login
+
+3. FeedPage.tsx
+- Header: Aegis Rise logo, chapter name (from user's profile), member count for chapter, user profile icon
+- Tagline below header: "Connect. Collaborate. Grow."
+- Main feed: List of posts from chapter members (newest first)
+- Each post shows: author avatar, name, title, caption, image, share count
+- "Share" button on each post
+- "New Post" button (opens modal)
+- Pagination or infinite scroll (load more)
+- Navigation bar with Aegis branding
+
+4. PostCard.tsx
+- Reusable component for displaying single post
+- Shows: author avatar (initials if no pic), author name + title, post date
+- Post caption (clickable to view full post)
+- Post image (if exists, click to view full)
+- Share count with breakdown by platform
+- Share button
+- Delete button (if user is author or admin)
+
+5. PostCreationModal.tsx
+- Text area for caption (max 500 chars, char counter)
+- Image upload input
+- Preview of uploaded image
+- "Post" button (disabled until caption is filled)
+- "Cancel" button
+- Loading state while posting
+- Success message
+
+6. ProfilePage.tsx
+- Member's profile: name, title, company, bio
+- Profile picture (if exists)
+- Customization options if user is viewing own profile:
+  - Edit bio, title
+  - Change theme (light/dark)
+  - Change primary color (color picker)
+  - Upload profile picture
+- Member's posts (list below profile)
+- Post count, share count stats
+
+7. AdminDashboard.tsx
+- Only accessible to admin role
+- Navigation tabs: Overview, Posts, Members, Approvals, Analytics, Settings
+- Overview tab:
+  - Cards showing: Total Members, Active Members, Pending Approvals, Banned Members
+  - Recent activity feed
+  - Top posts this month
+- Posts tab:
+  - List of all posts with moderation buttons (delete, feature)
+- Members tab:
+  - List of all members with status badges
+  - Actions: ban, remove
+- Approvals tab:
+  - Pending member signups
+  - Accept/Deny buttons
+  - Shows: name, email, title, company, bio
+- Analytics tab:
+  - Charts for shares timeline, posts by member, members by activity
+  - Platform breakdown (pie chart: LinkedIn, Instagram, Facebook, TikTok)
+- Settings tab:
+  - Edit chapter name, logo, colors
+  - View/edit content guidelines
+
+8. Navigation.tsx
+- Header with Aegis Rise logo (shield icon + "Aegis Rise" text)
+- Subtitle: Current chapter name
+- Member count for chapter
+- Links: Feed, Profile, Admin (if admin)
+- Logout button
+- Responsive (hamburger menu on mobile)
+- Colors: Navy background, electric blue accents
+
+9. ShareButton.tsx
+- Click opens dropdown with platform options
+- Options: LinkedIn, Instagram, Facebook, TikTok, Copy Link
+- Shows confirmation after sharing
+- Displays current share count
+
+BRANDING & STYLING:
+- Logo: Aegis Rise shield logo (provided as image)
+- Dark background (#1a1a1a or #0f0f0f)
+- Light text (#ffffff)
+- Primary color: Electric blue (#007BFF)
+- Secondary color: Navy (#001f3f)
+- Cards: Dark gray (#2a2a2a)
+- Accent: Cyan/light blue (#00BFD3)
+- Hover effects on interactive elements
+- Smooth transitions
+- Mobile responsive (full width on phones)
+
+HEADER ON ALL PAGES:
+- Left: Aegis Rise logo + "Aegis Rise" text
+- Center: Current chapter name (from user's profile)
+- Right: Member count for chapter, user avatar, logout
+
+TAGLINE:
+- Display "Connect. Collaborate. Grow." on login/signup pages
+
+API INTEGRATION:
+- useAuth hook manages login/logout/current user
+- useFetch hook handles API calls with loading/error states
+- API utils file has axios instance with JWT token in headers
+- Error handling: Show user-friendly error messages
+
+AUTHENTICATION FLOW:
+- On app load, check if token exists in localStorage
+- If token exists and valid, load current user
+- If token invalid/expired, redirect to login
+- Protected routes require authentication
+
+DELIVERABLES:
+- All pages functional and styled
+- API calls working (feed loads, posts create, sharing works)
+- Admin dashboard fully operational
+- Mobile responsive design
+- Dark mode by default
+- Error handling and loading states
+
+When complete, confirm all pages load, auth works, feed displays posts, and admin dashboard is accessible.
