@@ -10,6 +10,7 @@ A multi-chapter social platform where members connect, collaborate, and amplify 
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- Required for authentication: `JWT_SECRET` — secure signing key for seven-day member access tokens
 - API health checks: `/api/health` and `/api/healthz`
 
 ## Stack
@@ -31,6 +32,7 @@ A multi-chapter social platform where members connect, collaborate, and amplify 
 
 - Database schema is kept in the shared `@workspace/db` library so future frontend and API packages use the same model definitions.
 - Authentication is intentionally deferred to Phase 2; `src/middleware/auth.ts` is the insertion point for managed auth.
+- Signup is password-backed and creates a pending member; an authenticated administrator must activate members before login.
 - The API is mounted at `/api` to match the workspace proxy routing.
 
 ## Product

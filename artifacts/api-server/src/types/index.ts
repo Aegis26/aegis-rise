@@ -12,3 +12,4 @@ export type {
   SharePlatform,
   ThemePreference,
 } from "../db/schema";
+export type { AuthenticatedUser } from "../middleware/auth";

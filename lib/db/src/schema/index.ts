@@ -33,6 +33,9 @@ const timestamps = {
 export const membersTable = pgTable("members", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: text("email").notNull().unique(),
+  // Nullable for members created before authentication was introduced.
+  // New signups always provide a hash, while legacy accounts must establish one.
+  passwordHash: text("password_hash"),
   name: text("name").notNull(),
   title: text("title").notNull(),
   company: text("company").notNull(),
