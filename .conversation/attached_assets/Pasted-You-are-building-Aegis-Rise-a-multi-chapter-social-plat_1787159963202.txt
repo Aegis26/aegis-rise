@@ -1,0 +1,117 @@
+You are building Aegis Rise - a multi-chapter social platform where members post content and share it to social media to amplify each other's reach.
+
+ABOUT AEGIS RISE:
+- Name: Aegis Rise
+- Tagline: Connect. Collaborate. Grow.
+- Multi-chapter platform (members specify their chapter on signup)
+- Dark mode by default
+- Colors: Electric blue (#007BFF), Navy (#001f3f)
+- Logo: Shield with rising arrow + network visualization
+
+STACK:
+- Express.js backend
+- PostgreSQL database with Drizzle ORM
+- React frontend (will be added in later phases)
+- TypeScript throughout
+- Cloudflare R2 for image storage
+- Railway for hosting
+
+PHASE 1 GOAL: Set up backend infrastructure, database schema, and Express server scaffolding.
+
+REQUIREMENTS:
+
+1. Create Drizzle ORM schema with these tables:
+
+Members Table:
+- id (UUID primary key)
+- email (string, unique)
+- name (string)
+- title (string, job role)
+- company (string)
+- chapter (string, e.g., "BNI Game Changers", "Rotary Club", "Chamber of Commerce")
+- bio (text, optional)
+- profilePictureUrl (string, optional)
+- themePreference (enum: 'light' | 'dark')
+- primaryColor (string, hex color, default '#007BFF')
+- role (enum: 'member' | 'admin')
+- status (enum: 'pending' | 'active' | 'banned')
+- createdAt (timestamp)
+- updatedAt (timestamp)
+
+Posts Table:
+- id (UUID primary key)
+- authorId (UUID, foreign key to Members)
+- caption (text)
+- imageUrl (string, optional)
+- createdAt (timestamp)
+- updatedAt (timestamp)
+
+Shares Table:
+- id (UUID primary key)
+- postId (UUID, foreign key to Posts)
+- sharedById (UUID, foreign key to Members)
+- platform (enum: 'LinkedIn' | 'Instagram' | 'Facebook' | 'TikTok' | 'Direct Link')
+- createdAt (timestamp)
+
+Chapter Config Table:
+- id (UUID primary key)
+- chapterName (string)
+- chapterLogoUrl (string, optional)
+- primaryColor (string, hex)
+- secondaryColor (string, hex)
+- chapterDescription (text, optional)
+
+2. Create Express server structure:
+- src/server.ts (main entry point)
+- src/db/schema.ts (Drizzle schema definitions)
+- src/db/index.ts (database connection)
+- src/types/index.ts (TypeScript types for all tables)
+- src/middleware/auth.ts (will populate in later phases)
+- src/routes/ (folder for endpoints)
+- src/utils/errors.ts (error handling)
+
+3. Set up environment variables:
+- DATABASE_URL (PostgreSQL connection string)
+- JWT_SECRET (for auth tokens, will use in phase 2)
+- CLOUDFLARE_ACCOUNT_ID
+- CLOUDFLARE_API_TOKEN
+- R2_BUCKET_NAME
+- NODE_ENV (development/production)
+
+4. Create basic Express setup:
+- Initialize server on port 3000
+- Add CORS middleware (allow localhost:3000 for frontend)
+- Add JSON body parser
+- Add error handling middleware
+- Health check endpoint at GET /health that returns { status: 'ok' }
+
+5. Create package.json dependencies:
+- express
+- drizzle-orm
+- pg (PostgreSQL driver)
+- dotenv
+- typescript
+- @types/express
+- @types/node
+- ts-node
+- uuid
+- jsonwebtoken (for later phases)
+- bcryptjs (for password hashing, phase 2)
+
+6. Set up Drizzle migrations:
+- Create migrations folder
+- Generate initial migration for schema
+
+7. Add a simple README with:
+- How to run locally
+- Environment variables needed
+- Database setup instructions
+
+DELIVERABLES:
+- Working Express server that runs without errors
+- Database schema fully defined in Drizzle
+- Migrations created and ready to run
+- Health check endpoint working
+- TypeScript compilation successful
+
+When complete, confirm all files are created and server starts successfully.

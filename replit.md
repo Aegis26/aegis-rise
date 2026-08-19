@@ -1,6 +1,6 @@
-# [Project name]
+# Aegis Rise
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A multi-chapter social platform where members connect, collaborate, and amplify each other's reach.
 
 ## Run & Operate
 
@@ -10,6 +10,7 @@ _Replace the heading above with the project's name, and this line with one sente
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL` — Postgres connection string
+- API health checks: `/api/health` and `/api/healthz`
 
 ## Stack
 
@@ -22,11 +23,15 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/api-server/src` — Express entry point, routes, middleware, and server-facing types.
+- `lib/db/src/schema/index.ts` — Drizzle source schema for members, posts, shares, and chapter configuration.
+- `lib/db/drizzle` — generated/applicable PostgreSQL migrations.
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Database schema is kept in the shared `@workspace/db` library so future frontend and API packages use the same model definitions.
+- Authentication is intentionally deferred to Phase 2; `src/middleware/auth.ts` is the insertion point for managed auth.
+- The API is mounted at `/api` to match the workspace proxy routing.
 
 ## Product
 
