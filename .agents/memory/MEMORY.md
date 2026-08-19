@@ -1,0 +1,1 @@
+- [Drizzle migrations](drizzle-migrations.md) — keep migration output relative and initialize the Drizzle journal before first generation.
