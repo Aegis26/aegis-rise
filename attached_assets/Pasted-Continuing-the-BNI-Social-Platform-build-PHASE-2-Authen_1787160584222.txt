@@ -1,0 +1,117 @@
+Continuing the BNI Social Platform build. PHASE 2: Authentication and member signup/approval workflow.
+
+CONTEXT: We have a working Express backend with database schema and Cloudflare R2 configured.
+
+PHASE 2 GOAL: Implement member signup with email/password auth, JWT token generation, and admin approval workflow.
+
+REQUIREMENTS:
+
+1. Create authentication endpoints:
+
+POST /api/auth/signup
+- Body: { email, name, title, company, chapter, bio }
+- Validates email is unique
+- Creates member with status='pending' (awaiting admin approval)
+- Chapter can be pre-defined (BNI Game Changers, etc.) or custom text
+- Returns: { id, email, name, chapter, status, message: 'Pending admin approval' }
+- Does NOT create JWT token yet (member can't access platform until approved)
+
+POST /api/auth/login
+- Body: { email, password }
+- Only allows login if status='active'
+- Validates password against stored hash
+- Returns: { token, member: { id, name, email, role, status } }
+- Token expires in 7 days
+
+POST /api/auth/logout
+- Clears token on client side (no backend needed, but include endpoint for consistency)
+
+2. Create admin endpoints:
+
+GET /api/admin/pending-members
+- Returns all members with status='pending'
+- Shows: id, email, name, title, company, bio, createdAt
+- Auth required: admin role
+
+PATCH /api/admin/members/:id/approve
+- Sets member status='active'
+- Returns updated member
+- Auth required: admin role
+
+PATCH /api/admin/members/:id/deny
+- Deletes the member record
+- Returns success message
+- Auth required: admin role
+
+PATCH /api/admin/members/:id/ban
+- Sets member status='banned'
+- Prevents login
+- Returns updated member
+- Auth required: admin role
+
+3. Create member endpoints:
+
+GET /api/members/me
+- Returns current logged-in member's full profile
+- Auth required
+
+GET /api/members/:id
+- Returns public profile for any member (name, title, company, bio, profilePictureUrl, themePreference)
+- Auth required (members only)
+
+PATCH /api/members/me
+- Body: { name, title, company, bio, themePreference, primaryColor }
+- Updates member's own profile
+- Auth required
+
+GET /api/members
+- Returns list of all active members (for directory)
+- Shows: id, name, title, company, profilePictureUrl
+- Auth required
+
+4. Authentication middleware:
+
+Create /src/middleware/auth.ts:
+- verifyToken() middleware that:
+  - Extracts JWT from Authorization header (Bearer token)
+  - Validates token signature
+  - Checks token expiration
+  - Attaches member data to req.user
+  - Throws 401 if invalid/expired
+
+- requireAdmin() middleware that:
+  - Calls verifyToken()
+  - Checks if req.user.role === 'admin'
+  - Throws 403 if not admin
+
+5. Password hashing:
+- Use bcryptjs for password hashing
+- Hash password before storing in database
+- Compare hashed password during login
+- Never log or return passwords
+
+6. Error handling:
+- 400: Invalid input (validation errors)
+- 401: Unauthorized (missing/invalid token)
+- 403: Forbidden (not admin when required)
+- 404: Member not found
+- 409: Email already exists
+- 500: Server error
+
+7. Test endpoints exist:
+- POST /api/auth/signup - can create member with pending status
+- GET /api/admin/pending-members - returns pending members (admin only)
+- PATCH /api/admin/members/:id/approve - approves member
+- POST /api/auth/login - login works for active members only
+- GET /api/members/me - returns current user
+- PATCH /api/members/me - can update own profile
+
+DELIVERABLES:
+- Authentication endpoints fully functional
+- Member signup creates users with pending status
+- Admin can approve/deny/ban members
+- JWT tokens generated and validated
+- Member directory accessible to logged-in members
+- All endpoints tested and working
+
+When complete, confirm signup, approval, and login workflows are functional.
