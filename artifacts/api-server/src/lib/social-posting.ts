@@ -125,6 +125,25 @@ function imageUploadFromResponse(body: ProviderResponse): LinkedInImageUpload {
   return { imageUrn, uploadUrl };
 }
 
+function responseBodyForLogs(url: string, body: ProviderResponse): ProviderResponse {
+  if (
+    url !==
+      "https://api.linkedin.com/rest/images?action=initializeUpload" ||
+    !body.value ||
+    typeof body.value !== "object"
+  ) {
+    return body;
+  }
+
+  return {
+    ...body,
+    value: {
+      ...(body.value as Record<string, unknown>),
+      uploadUrl: "[REDACTED signed upload URL]",
+    },
+  };
+}
+
 function assertManagedImageUrl(imageUrl: string): URL {
   const publicImageBaseUrl = process.env.R2_PUBLIC_URL?.trim();
   if (!publicImageBaseUrl) {
@@ -284,6 +303,7 @@ async function providerFetch(
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
     const body = parseProviderResponse(await response.text());
+    const logBody = responseBodyForLogs(url, body);
     logger.info(
       {
         provider: label,
@@ -293,7 +313,7 @@ async function providerFetch(
           statusText: response.statusText,
           headers:
             label === "LinkedIn" ? linkedInResponseHeaders(response) : undefined,
-          body,
+          body: logBody,
         },
       },
       "Social provider response received",
