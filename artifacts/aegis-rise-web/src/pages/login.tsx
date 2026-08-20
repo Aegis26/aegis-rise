@@ -6,7 +6,7 @@ import { z } from "zod";
 import { useLogin } from "@workspace/api-client-react";
 import { useAuth } from "@/lib/auth";
 import { aegisLogo } from "@/lib/brand";
-import { Shield, Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,9 +65,9 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row bg-background">
+    <div className="login-page min-h-[100dvh] flex flex-col md:flex-row bg-[#0a1428]">
       {/* Brand Side */}
-      <div className="hidden md:flex md:w-1/2 bg-card border-r border-border p-12 flex-col justify-between relative overflow-hidden">
+      <div className="flex w-full md:w-[40%] min-h-[430px] md:min-h-[100dvh] bg-[#0a1428] border-b md:border-b-0 md:border-r border-white/10 p-8 sm:p-12 lg:p-14 flex-col justify-between relative overflow-hidden">
         {/* Abstract background elements */}
         <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
           <div className="absolute -top-[20%] -left-[10%] w-[70%] h-[70%] rounded-full bg-primary/5 blur-[120px]" />
@@ -77,40 +77,38 @@ export default function Login() {
         </div>
         
         <div className="relative z-10">
-          <div className="flex items-center gap-3 text-primary font-display font-bold text-3xl tracking-tight">
-            <img src={aegisLogo} alt="Aegis Rise" className="h-10 w-auto" />
+          <div className="flex items-center gap-3 text-white font-bold text-2xl tracking-[0.08em]">
+            <img src={aegisLogo} alt="Aegis Rise" className="h-[60px] w-[60px] object-contain" />
             <span>AEGIS RISE</span>
           </div>
         </div>
         
-        <div className="relative z-10 max-w-md">
-          <h1 className="text-5xl font-display font-bold leading-tight mb-6">
-            Connect.<br />
-            Collaborate.<br />
-            <span className="text-primary">Grow.</span>
+        <div className="relative z-10 max-w-[400px] py-10 md:py-0">
+          <h1 className="text-[clamp(2.75rem,5vw,3rem)] font-bold leading-[1.08] tracking-[-0.04em] mb-6 text-white">
+            Connect. Collaborate. <span className="text-[#00bfd3]">Grow.</span>
           </h1>
-          <p className="text-muted-foreground text-lg mb-8">
+          <p className="text-[#b8c3d1] text-lg leading-relaxed">
             The exclusive professional network for active chapter members. Discover fellow members, share useful work, and steward a trusted community.
           </p>
         </div>
         
-        <div className="relative z-10 text-sm text-muted-foreground">
-          &copy; {new Date().getFullYear()} Aegis Rise. All rights reserved.
+        <div className="relative z-10 text-sm text-[#8e9bad] tracking-wide">
+          Institutional-grade security &amp; precision
         </div>
       </div>
 
       {/* Form Side */}
-      <div className="flex-1 flex flex-col justify-center px-6 py-12 sm:px-12 lg:px-24 xl:px-32">
-        <div className="mx-auto w-full max-w-sm">
+      <div className="w-full md:w-[60%] flex-1 flex flex-col justify-center bg-[#2a2a2a] px-6 py-12 sm:px-12 lg:px-20 xl:px-28">
+        <div className="mx-auto w-full max-w-[460px]">
           {/* Mobile Header */}
-          <div className="md:hidden flex items-center gap-2 text-primary font-display font-bold text-2xl tracking-tight mb-8">
-            <img src={aegisLogo} alt="Aegis Rise" className="h-8 w-auto" />
+          <div className="md:hidden flex items-center gap-2 text-white font-bold text-xl tracking-[0.08em] mb-10">
+            <img src={aegisLogo} alt="Aegis Rise" className="h-10 w-10 object-contain" />
             <span>AEGIS RISE</span>
           </div>
 
           <div className="mb-10">
-            <h2 className="text-3xl font-display font-bold mb-2">Welcome Back</h2>
-            <p className="text-muted-foreground">Sign in to your member account.</p>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-[-0.03em] text-white mb-3">Welcome Back</h2>
+            <p className="text-[#b8b8b8] text-base">Sign in to your member account.</p>
           </div>
 
           <Form {...form}>
@@ -120,12 +118,13 @@ export default function Login() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email Address</FormLabel>
+                    <FormLabel className="text-[#ededed]">Email Address</FormLabel>
                     <FormControl>
                       <Input
                         placeholder="you@example.com"
                         type="email"
                         autoComplete="email"
+                        className="h-12 bg-[#333333] border-white/10 text-white placeholder:text-[#858585] focus-visible:border-[#007bff] focus-visible:ring-[#007bff]/30"
                         data-testid="input-email"
                         {...field}
                       />
@@ -140,14 +139,14 @@ export default function Login() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <div className="flex justify-between items-center">
-                      <FormLabel>Password</FormLabel>
+                      <div className="flex justify-between items-center">
+                        <FormLabel className="text-[#ededed]">Password</FormLabel>
                     </div>
                     <FormControl>
                       <Input
-                        placeholder="••••••••"
                         type="password"
                         autoComplete="current-password"
+                         className="h-12 bg-[#333333] border-white/10 text-white placeholder:text-[#858585] focus-visible:border-[#007bff] focus-visible:ring-[#007bff]/30"
                         data-testid="input-password"
                         {...field}
                       />
@@ -159,7 +158,7 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full h-12 text-md font-medium"
+                className="w-full h-12 text-md font-medium rounded-md bg-[#007bff] hover:bg-[#006de0] text-white transition-colors"
                 disabled={loginMutation.isPending}
                 data-testid="button-login-submit"
               >
@@ -178,10 +177,10 @@ export default function Login() {
             </form>
           </Form>
 
-          <div className="mt-10 pt-6 border-t border-border text-center">
-            <p className="text-muted-foreground">
+          <div className="mt-10 pt-6 border-t border-white/10 text-center">
+            <p className="text-[#b8b8b8]">
               Not a member yet?{" "}
-              <Link href="/signup" className="text-primary hover:underline font-medium font-display tracking-wide" data-testid="link-signup">
+              <Link href="/signup" className="text-[#00bfd3] hover:text-white hover:underline font-medium tracking-wide transition-colors" data-testid="link-signup">
                 Apply for Chapter Access
               </Link>
             </p>
