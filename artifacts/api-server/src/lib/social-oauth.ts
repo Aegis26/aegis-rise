@@ -86,7 +86,7 @@ export function getSocialProvider(
         ),
         authorizationUrl: "https://www.linkedin.com/oauth/v2/authorization",
         tokenUrl: "https://www.linkedin.com/oauth/v2/accessToken",
-        scopes: ["openid", "profile", "w_member_social", "offline_access"],
+        scopes: ["openid", "profile", "w_member_social"],
       };
     case "instagram":
       return {
