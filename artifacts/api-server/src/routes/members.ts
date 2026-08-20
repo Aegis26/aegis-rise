@@ -88,16 +88,10 @@ router.get("/members/me", requireAuth, async (request, response, next) => {
 router.patch("/members/me", requireAuth, async (request, response, next) => {
   try {
     const update = updateProfileSchema.parse(request.body);
-    const preferredPostPlatforms = update.preferredPostPlatforms?.filter(
-      (platform) => platform !== "facebook" && platform !== "instagram",
-    );
     const [member] = await db
       .update(membersTable)
       .set({
         ...update,
-        ...(preferredPostPlatforms
-          ? { preferredPostPlatforms }
-          : {}),
         updatedAt: new Date(),
       })
       .where(eq(membersTable.id, request.user!.id))

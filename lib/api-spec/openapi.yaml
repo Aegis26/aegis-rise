@@ -882,11 +882,15 @@ components:
         profilePictureUrl: { type: [string, "null"], format: uri }
     Post:
       type: object
-      required: [id, caption, status, isFeatured, createdAt, updatedAt, author, shareCount]
+      required: [id, caption, images, status, isFeatured, createdAt, updatedAt, author, shareCount]
       properties:
         id: { type: string, format: uuid }
         caption: { type: string }
         imageUrl: { type: [string, "null"], format: uri }
+        images:
+          type: array
+          maxItems: 10
+          items: { $ref: "#/components/schemas/PostImage" }
         status: { type: string, enum: [featured, normal] }
         isFeatured: { type: boolean }
         featuredAt: { type: [string, "null"], format: date-time }
@@ -894,12 +898,24 @@ components:
         updatedAt: { type: string, format: date-time }
         author: { $ref: "#/components/schemas/PostAuthor" }
         shareCount: { type: integer }
+    PostImage:
+      type: object
+      required: [id, imageUrl, position]
+      properties:
+        id: { type: string, format: uuid }
+        imageUrl: { type: string, format: uri }
+        position: { type: integer, minimum: 0 }
     PostInput:
       type: object
       required: [caption]
       properties:
         caption: { type: string, minLength: 1, maxLength: 5000 }
         imageUrl: { type: [string, "null"], format: uri }
+        imageUrls:
+          type: array
+          minItems: 1
+          maxItems: 10
+          items: { type: string, format: uri }
     PostResponse:
       type: object
       required: [post]
@@ -948,12 +964,14 @@ components:
         provider: { type: string }
     SocialAccount:
       type: object
-      required: [platform, connectedAt, isActive]
+      required: [platform, connectedAt, isActive, isPublishingEligible]
       properties:
         platform: { $ref: "#/components/schemas/SocialPlatform" }
         connectedAt: { type: string, format: date-time }
         expiresAt: { type: [string, "null"], format: date-time }
         isActive: { type: boolean }
+        isPublishingEligible: { type: boolean }
+        publishingError: { type: [string, "null"] }
     SocialAccountList:
       type: object
       required: [accounts]
@@ -1033,12 +1051,16 @@ components:
         members: { type: integer }
     AdminPost:
       type: object
-      required: [postId, author, caption, shares, createdAt, updatedAt, status]
+      required: [postId, author, caption, images, shares, createdAt, updatedAt, status]
       properties:
         postId: { type: string, format: uuid }
         author: { $ref: "#/components/schemas/PostAuthor" }
         caption: { type: string }
         imageUrl: { type: [string, "null"], format: uri }
+        images:
+          type: array
+          maxItems: 10
+          items: { $ref: "#/components/schemas/PostImage" }
         shares: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }

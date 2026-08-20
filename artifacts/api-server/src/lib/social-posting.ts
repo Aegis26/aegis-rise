@@ -22,7 +22,7 @@ import { logger } from "./logger";
 export interface SocialPostInput {
   id: string;
   caption: string;
-  imageUrl: string | null;
+  imageUrls: string[];
   authorName: string;
   chapterName: string;
   postLink: string;
@@ -293,6 +293,200 @@ async function uploadImageToLinkedIn(
   return imageUrn;
 }
 
+async function uploadImagesToLinkedIn(
+  accessToken: string,
+  owner: string,
+  imageUrls: string[],
+  linkedInVersion: string,
+  postId: string,
+): Promise<string[]> {
+  const imageUrns: string[] = [];
+  for (const imageUrl of imageUrls) {
+    imageUrns.push(
+      await uploadImageToLinkedIn(
+        accessToken,
+        owner,
+        imageUrl,
+        linkedInVersion,
+        postId,
+      ),
+    );
+  }
+  return imageUrns;
+}
+
+function requireProviderId(body: ProviderResponse, provider: string): string {
+  if (typeof body.id !== "string" || body.id.length === 0) {
+    throw new Error(`${provider} did not return a media identifier.`);
+  }
+  return body.id;
+}
+
+async function postToFacebookPage(
+  account: SocialAccount,
+  accessToken: string,
+  caption: string,
+  imageUrls: string[],
+): Promise<SocialPostOutcome> {
+  const photoIds: string[] = [];
+  for (const imageUrl of imageUrls) {
+    const { body } = await providerFetch(
+      `https://graph.facebook.com/v20.0/${encodeURIComponent(account.externalUserId)}/photos`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          access_token: accessToken,
+          url: imageUrl,
+          published: "false",
+        }),
+      },
+      "Facebook",
+    );
+    photoIds.push(requireProviderId(body, "Facebook"));
+  }
+
+  const body = new URLSearchParams({
+    access_token: accessToken,
+    message: caption,
+  });
+  if (photoIds.length > 0) {
+    body.set(
+      "attached_media",
+      JSON.stringify(photoIds.map((media_fbid) => ({ media_fbid }))),
+    );
+  }
+  const { body: responseBody } = await providerFetch(
+    `https://graph.facebook.com/v20.0/${encodeURIComponent(account.externalUserId)}/feed`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body,
+    },
+    "Facebook",
+  );
+  const postId = requireProviderId(responseBody, "Facebook");
+  return { status: "success", externalUrl: postId };
+}
+
+async function waitForInstagramContainer(
+  containerId: string,
+  accessToken: string,
+): Promise<void> {
+  const maxAttempts = 8;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const { body } = await providerFetch(
+      `https://graph.facebook.com/v20.0/${encodeURIComponent(containerId)}?fields=status_code`,
+      {
+        method: "GET",
+        headers: { authorization: `Bearer ${accessToken}` },
+      },
+      "Instagram",
+    );
+    const statusCode =
+      typeof body.status_code === "string" ? body.status_code : undefined;
+
+    if (statusCode === "FINISHED") {
+      return;
+    }
+    if (statusCode === "ERROR" || statusCode === "EXPIRED") {
+      throw new Error(
+        "Instagram could not finish processing one of the carousel images.",
+      );
+    }
+    if (attempt < maxAttempts) {
+      await new Promise<void>((resolve) => {
+        setTimeout(resolve, 1_000 + attempt * 500);
+      });
+    }
+  }
+
+  throw new Error(
+    "Instagram is still processing this carousel. Please try sharing again shortly.",
+  );
+}
+
+async function postToInstagramAccount(
+  account: SocialAccount,
+  accessToken: string,
+  caption: string,
+  imageUrls: string[],
+): Promise<SocialPostOutcome> {
+  if (imageUrls.length === 0) {
+    return {
+      status: "error",
+      error: "Instagram posts need at least one image.",
+    };
+  }
+
+  const containers: string[] = [];
+  for (const imageUrl of imageUrls) {
+    const body = new URLSearchParams({
+      access_token: accessToken,
+      image_url: imageUrl,
+      ...(imageUrls.length > 1 ? { is_carousel_item: "true" } : {}),
+      ...(imageUrls.length === 1 ? { caption } : {}),
+    });
+    const { body: responseBody } = await providerFetch(
+      `https://graph.facebook.com/v20.0/${encodeURIComponent(account.externalUserId)}/media`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/x-www-form-urlencoded" },
+        body,
+      },
+      "Instagram",
+    );
+    const containerId = requireProviderId(responseBody, "Instagram");
+    containers.push(containerId);
+    await waitForInstagramContainer(containerId, accessToken);
+  }
+
+  const publishableContainer =
+    containers.length === 1
+      ? containers[0]
+      : requireProviderId(
+          (
+            await providerFetch(
+              `https://graph.facebook.com/v20.0/${encodeURIComponent(account.externalUserId)}/media`,
+              {
+                method: "POST",
+                headers: {
+                  "content-type": "application/x-www-form-urlencoded",
+                },
+                body: new URLSearchParams({
+                  access_token: accessToken,
+                  media_type: "CAROUSEL",
+                  children: containers.join(","),
+                  caption,
+                }),
+              },
+              "Instagram",
+            )
+          ).body,
+          "Instagram",
+        );
+
+  await waitForInstagramContainer(publishableContainer, accessToken);
+
+  const { body: responseBody } = await providerFetch(
+    `https://graph.facebook.com/v20.0/${encodeURIComponent(account.externalUserId)}/media_publish`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        access_token: accessToken,
+        creation_id: publishableContainer,
+      }),
+    },
+    "Instagram",
+  );
+  return {
+    status: "success",
+    externalUrl: requireProviderId(responseBody, "Instagram"),
+  };
+}
+
 async function providerFetch(
   url: string,
   options: RequestInit,
@@ -396,16 +590,19 @@ async function getUsableAccessToken(account: SocialAccount): Promise<string> {
       expiresAt?: Date;
     };
     let externalUserId = account.externalUserId;
+    let isPublishingEligible = account.isPublishingEligible;
+    let publishingError = account.publishingError;
     if (account.platform === "linkedin") {
       refreshed = await refreshLinkedInAccessToken(provider, refreshToken);
     } else {
       const metaRefresh = await refreshMetaAccessToken(
         provider,
         refreshToken,
-        account.externalUserId,
       );
       refreshed = metaRefresh;
       externalUserId = metaRefresh.externalUserId;
+      isPublishingEligible = metaRefresh.isPublishingEligible;
+      publishingError = metaRefresh.publishingError ?? null;
     }
     await db
       .update(socialAccountsTable)
@@ -417,6 +614,8 @@ async function getUsableAccessToken(account: SocialAccount): Promise<string> {
         externalUserId,
         expiresAt: refreshed.expiresAt ?? null,
         isActive: true,
+        isPublishingEligible,
+        publishingError,
         updatedAt: new Date(),
       })
       .where(eq(socialAccountsTable.id, account.id));
@@ -438,11 +637,12 @@ export async function postToSocial(
 ): Promise<SocialPostOutcome> {
   const platform = account.platform as SupportedSocialPlatform;
   try {
-    if (platform === "facebook" || platform === "instagram") {
+    if (!account.isPublishingEligible) {
       return {
         status: "error",
         error:
-          `${platform === "facebook" ? "Facebook" : "Instagram"} is connected for account authentication only and cannot auto-post in this MVP.`,
+          account.publishingError ??
+          `Reconnect this ${platform} account to enable publishing.`,
       };
     }
 
@@ -454,18 +654,33 @@ export async function postToSocial(
       post.chapterName,
       post.postLink,
     );
+    if (platform === "facebook") {
+      return await postToFacebookPage(
+        account,
+        accessToken,
+        caption,
+        post.imageUrls,
+      );
+    }
+    if (platform === "instagram") {
+      return await postToInstagramAccount(
+        account,
+        accessToken,
+        caption,
+        post.imageUrls,
+      );
+    }
+
     const linkedInVersion =
       process.env.LINKEDIN_API_VERSION?.trim() || "202608";
     const author = `urn:li:person:${account.externalUserId}`;
-    const imageUrn = post.imageUrl
-      ? await uploadImageToLinkedIn(
-          accessToken,
-          author,
-          post.imageUrl,
-          linkedInVersion,
-          post.id,
-        )
-      : undefined;
+    const imageUrns = await uploadImagesToLinkedIn(
+      accessToken,
+      author,
+      post.imageUrls,
+      linkedInVersion,
+      post.id,
+    );
     const linkedInPayload = {
       author,
       commentary: caption,
@@ -475,15 +690,23 @@ export async function postToSocial(
         targetEntities: [],
         thirdPartyDistributionChannels: [],
       },
-      ...(imageUrn
+      ...(imageUrns.length === 1
         ? {
             content: {
               media: {
-                id: imageUrn,
+                id: imageUrns[0],
               },
             },
           }
-        : {}),
+        : imageUrns.length > 1
+          ? {
+              content: {
+                multiImage: {
+                  images: imageUrns.map((id) => ({ id })),
+                },
+              },
+            }
+          : {}),
       lifecycleState: "PUBLISHED",
       isReshareDisabledByAuthor: false,
     };
@@ -505,7 +728,7 @@ export async function postToSocial(
         },
         bearerTokenPrepared: Boolean(accessToken.trim()),
       },
-      "LinkedIn auto-post request starting",
+      "Social auto-post request starting",
     );
 
     const { body, response } = await providerFetch(
@@ -531,7 +754,7 @@ export async function postToSocial(
         linkedInPostId: response.headers.get("x-restli-id") ?? undefined,
         responseBody: body,
       },
-      "LinkedIn auto-post request completed",
+      "Social auto-post request completed",
     );
     return {
       status: "success",
@@ -546,7 +769,7 @@ export async function postToSocial(
         err: error,
         errorMessage: error instanceof Error ? error.message : String(error),
       },
-      "LinkedIn auto-post request failed",
+      "Social auto-post request failed",
     );
     return {
       status: "error",

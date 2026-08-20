@@ -35,6 +35,7 @@ import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { PostGallery } from "@/components/feed/post-gallery";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -56,8 +57,8 @@ const SOCIAL_PLATFORMS: Array<{
   canAutoPost: boolean;
 }> = [
   { value: "linkedin", label: "LinkedIn", canAutoPost: true },
-  { value: "facebook", label: "Facebook", canAutoPost: false },
-  { value: "instagram", label: "Instagram", canAutoPost: false },
+  { value: "facebook", label: "Facebook", canAutoPost: true },
+  { value: "instagram", label: "Instagram", canAutoPost: true },
 ];
 
 function getAuthorizationUrl(result: unknown): string | undefined {
@@ -132,9 +133,7 @@ export default function Profile() {
         themePreference: memberData.member.themePreference as any || "dark",
         primaryColor: memberData.member.primaryColor || "#00aaff",
         autoPostShares: memberData.member.autoPostShares,
-        preferredPostPlatforms: memberData.member.preferredPostPlatforms.filter(
-          (platform) => platform !== "facebook" && platform !== "instagram",
-        ),
+        preferredPostPlatforms: memberData.member.preferredPostPlatforms,
       });
     }
   }, [memberData, form]);
@@ -275,7 +274,7 @@ export default function Profile() {
   const socialAccounts = socialAccountsData?.accounts ?? [];
   const activePlatforms = new Set(
     socialAccounts
-      .filter((account) => account.isActive)
+      .filter((account) => account.isActive && account.isPublishingEligible)
       .map((account) => account.platform),
   );
 
@@ -482,7 +481,7 @@ export default function Profile() {
                             })}
                           </div>
                           <FormDescription>
-                            Connect LinkedIn before selecting it. Facebook and Instagram are available for account authentication only.
+                            Connect a publishing-ready account before selecting it. Facebook requires a Page; Instagram requires a Business or Creator account connected to a Page.
                           </FormDescription>
                         </FormItem>
                       )}
@@ -504,19 +503,31 @@ export default function Profile() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium">{platform.label}</span>
                               {account ? (
-                                <Badge
-                                  variant={account.isActive ? "secondary" : "destructive"}
-                                  className={account.isActive ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" : ""}
-                                >
-                                  {account.isActive ? "Connected" : "Reconnect needed"}
-                                </Badge>
+                                <>
+                                  <Badge
+                                    variant={
+                                      account.isActive && account.isPublishingEligible
+                                        ? "secondary"
+                                        : "destructive"
+                                    }
+                                    className={
+                                      account.isActive && account.isPublishingEligible
+                                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                                        : ""
+                                    }
+                                  >
+                                    {account.isActive && account.isPublishingEligible
+                                      ? "Publishing ready"
+                                      : "Reconnect needed"}
+                                  </Badge>
+                                  {account.publishingError && (
+                                    <span className="max-w-xs text-xs text-muted-foreground">
+                                      {account.publishingError}
+                                    </span>
+                                  )}
+                                </>
                               ) : (
                                 <span className="text-xs text-muted-foreground">Not connected</span>
-                              )}
-                              {!platform.canAutoPost && (
-                                <span className="text-xs text-muted-foreground">
-                                  Authentication only
-                                </span>
                               )}
                             </div>
                             {account ? (
@@ -675,7 +686,7 @@ export default function Profile() {
           <CardDescription>Your latest contributions to the chapter feed.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          {posts.slice(0, 5).map((post) => <div key={post.id} className="rounded-md border border-border p-3"><p className="whitespace-pre-wrap">{post.caption}</p><p className="mt-2 text-xs text-muted-foreground">{post.shareCount} {post.shareCount === 1 ? "share" : "shares"}</p></div>)}
+          {posts.slice(0, 5).map((post) => <div key={post.id} className="rounded-md border border-border p-3"><p className="whitespace-pre-wrap">{post.caption}</p><PostGallery images={post.images} legacyImageUrl={post.imageUrl} /><p className="mt-2 text-xs text-muted-foreground">{post.shareCount} {post.shareCount === 1 ? "share" : "shares"}</p></div>)}
           {!posts.length && <p className="text-sm text-muted-foreground">You have not shared a post with the chapter yet.</p>}
         </CardContent>
       </Card>

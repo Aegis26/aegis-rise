@@ -7,6 +7,7 @@
  */
 import type { AdminPostStatus } from './adminPostStatus';
 import type { PostAuthor } from './postAuthor';
+import type { PostImage } from './postImage';
 
 export interface AdminPost {
   postId: string;
@@ -14,6 +15,8 @@ export interface AdminPost {
   caption: string;
   /** @nullable */
   imageUrl?: string | null;
+  /** @maxItems 10 */
+  images: PostImage[];
   shares: number;
   createdAt: Date;
   updatedAt: Date;

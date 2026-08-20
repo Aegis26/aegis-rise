@@ -1,7 +1,13 @@
 import { Router, type IRouter } from "express";
-import { and, count, desc, eq, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod/v4";
-import { db, membersTable, postsTable, sharesTable } from "../db";
+import {
+  db,
+  membersTable,
+  postImagesTable,
+  postsTable,
+  sharesTable,
+} from "../db";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../middleware/auth";
 import { HttpError } from "../utils/errors";
@@ -16,6 +22,11 @@ export const paginationSchema = z.object({
 const createPostSchema = z.object({
   caption: z.string().trim().min(1).max(5_000),
   imageUrl: z.string().trim().url().max(2_048).nullable().optional(),
+  imageUrls: z
+    .array(z.string().trim().url().max(2_048))
+    .min(1)
+    .max(10)
+    .optional(),
 });
 
 const postRowSelection = {
@@ -68,11 +79,49 @@ interface PostRow {
   shareCount: number;
 }
 
-function serializePost(row: PostRow) {
+export interface SerializedPostImage {
+  id: string;
+  imageUrl: string;
+  position: number;
+}
+
+interface SerializedPost {
+  id: string;
+  caption: string;
+  imageUrl: string | null;
+  images: SerializedPostImage[];
+  status: "featured" | "normal";
+  isFeatured: boolean;
+  featuredAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  author: {
+    id: string;
+    name: string;
+    title: string;
+    company: string;
+    chapter: string;
+    profilePictureUrl: string | null;
+  };
+  shareCount: number;
+}
+
+function serializePost(
+  row: PostRow,
+  postImages: SerializedPostImage[],
+): SerializedPost {
+  const images =
+    postImages.length > 0
+      ? postImages
+      : row.imageUrl
+        ? [{ id: `legacy-${row.id}`, imageUrl: row.imageUrl, position: 0 }]
+        : [];
+
   return {
     id: row.id,
     caption: row.caption,
-    imageUrl: row.imageUrl,
+    imageUrl: images[0]?.imageUrl ?? row.imageUrl,
+    images,
     status: row.isFeatured ? "featured" : "normal",
     isFeatured: row.isFeatured,
     featuredAt: row.featuredAt,
@@ -88,6 +137,85 @@ function serializePost(row: PostRow) {
     },
     shareCount: Number(row.shareCount),
   };
+}
+
+async function serializePosts(rows: PostRow[]): Promise<SerializedPost[]> {
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const postIds = rows.map((row) => row.id);
+  const imageRows = await db
+    .select({
+      id: postImagesTable.id,
+      postId: postImagesTable.postId,
+      imageUrl: postImagesTable.imageUrl,
+      position: postImagesTable.position,
+    })
+    .from(postImagesTable)
+    .where(inArray(postImagesTable.postId, postIds))
+    .orderBy(asc(postImagesTable.position), asc(postImagesTable.id));
+  const imagesByPostId = new Map<string, SerializedPostImage[]>();
+
+  for (const image of imageRows) {
+    const images = imagesByPostId.get(image.postId) ?? [];
+    images.push({
+      id: image.id,
+      imageUrl: image.imageUrl,
+      position: image.position,
+    });
+    imagesByPostId.set(image.postId, images);
+  }
+
+  return rows.map((row) => serializePost(row, imagesByPostId.get(row.id) ?? []));
+}
+
+function validateManagedImageUrls(imageUrls: string[]) {
+  if (imageUrls.length === 0) {
+    return;
+  }
+
+  const configuredBaseUrl = process.env.R2_PUBLIC_URL?.trim();
+  if (!configuredBaseUrl) {
+    throw new HttpError(503, "Image storage is not configured.");
+  }
+
+  let baseUrl: URL;
+  try {
+    baseUrl = new URL(configuredBaseUrl);
+  } catch {
+    throw new HttpError(500, "Image storage is not configured correctly.");
+  }
+
+  const basePath = baseUrl.pathname.endsWith("/")
+    ? baseUrl.pathname
+    : `${baseUrl.pathname}/`;
+  for (const imageUrl of imageUrls) {
+    try {
+      const parsed = new URL(imageUrl);
+      if (
+        parsed.protocol !== "https:" ||
+        parsed.origin !== baseUrl.origin ||
+        !parsed.pathname.startsWith(basePath)
+      ) {
+        throw new Error("Outside managed storage");
+      }
+    } catch {
+      throw new HttpError(
+        400,
+        "Posts can only use images uploaded through Aegis Rise.",
+      );
+    }
+  }
+}
+
+function resolveImageUrls(input: z.infer<typeof createPostSchema>): string[] {
+  const imageUrls = input.imageUrls ?? (input.imageUrl ? [input.imageUrl] : []);
+  if (new Set(imageUrls).size !== imageUrls.length) {
+    throw new HttpError(400, "Each post image must be unique.");
+  }
+  validateManagedImageUrls(imageUrls);
+  return imageUrls;
 }
 
 export function parseId(value: unknown, resource: "post" | "member"): string {
@@ -129,21 +257,36 @@ export async function findVisiblePost(postId: string, chapter: string) {
     .groupBy(...postGroupByColumns)
     .limit(1);
 
-  return row ? serializePost(row) : undefined;
+  return row ? (await serializePosts([row]))[0] : undefined;
 }
 
 router.post("/posts", requireAuth, async (request, response, next) => {
   try {
     const requestedAutoPost = request.body?.autoPost === true;
     const input = createPostSchema.parse(request.body);
-    const [createdPost] = await db
-      .insert(postsTable)
-      .values({
-        authorId: request.user!.id,
-        caption: input.caption,
-        imageUrl: input.imageUrl ?? null,
-      })
-      .returning({ id: postsTable.id });
+    const imageUrls = resolveImageUrls(input);
+    const createdPost = await db.transaction(async (transaction) => {
+      const [post] = await transaction
+        .insert(postsTable)
+        .values({
+          authorId: request.user!.id,
+          caption: input.caption,
+          imageUrl: imageUrls[0] ?? null,
+        })
+        .returning({ id: postsTable.id });
+
+      if (imageUrls.length > 0) {
+        await transaction.insert(postImagesTable).values(
+          imageUrls.map((imageUrl, position) => ({
+            postId: post.id,
+            imageUrl,
+            position,
+          })),
+        );
+      }
+
+      return post;
+    });
 
     const post = await findVisiblePost(createdPost.id, request.user!.chapter);
     if (!post) {
@@ -205,7 +348,7 @@ router.get("/posts/feed", requireAuth, async (request, response, next) => {
 
     const total = totals[0]?.total ?? 0;
     response.json({
-      posts: rows.map(serializePost),
+      posts: await serializePosts(rows),
       pagination: buildPagination(page, limit, total),
     });
   } catch (error) {
@@ -330,7 +473,7 @@ router.get(
       const total = totals[0]?.total ?? 0;
       response.json({
         member,
-        posts: rows.map(serializePost),
+        posts: await serializePosts(rows),
         pagination: buildPagination(page, limit, total),
       });
     } catch (error) {

@@ -248,6 +248,8 @@ router.get(
           connectedAt: now,
           expiresAt: token.expiresAt ?? null,
           isActive: true,
+          isPublishingEligible: token.isPublishingEligible,
+          publishingError: token.publishingError ?? null,
           updatedAt: now,
         })
         .onConflictDoUpdate({
@@ -264,6 +266,8 @@ router.get(
             connectedAt: now,
             expiresAt: token.expiresAt ?? null,
             isActive: true,
+            isPublishingEligible: token.isPublishingEligible,
+            publishingError: token.publishingError ?? null,
             updatedAt: now,
           },
         });
@@ -283,6 +287,8 @@ router.get("/auth/social/accounts", requireAuth, async (request, response, next)
         connectedAt: socialAccountsTable.connectedAt,
         expiresAt: socialAccountsTable.expiresAt,
         isActive: socialAccountsTable.isActive,
+        isPublishingEligible: socialAccountsTable.isPublishingEligible,
+        publishingError: socialAccountsTable.publishingError,
       })
       .from(socialAccountsTable)
       .where(eq(socialAccountsTable.memberId, request.user!.id));

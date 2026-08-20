@@ -162,10 +162,7 @@ router.post(
       const shouldAutoPost =
         requestedAutoPost ?? sharingMember?.autoPostShares ?? false;
       let autoPosted: AutoPostResults = {};
-      const publishablePlatforms =
-        sharingMember?.preferredPostPlatforms.filter(
-          (platform) => platform !== "facebook" && platform !== "instagram",
-        ) ?? [];
+      const publishablePlatforms = sharingMember?.preferredPostPlatforms ?? [];
       logger.info(
         {
           requestId: request.id,
@@ -189,7 +186,7 @@ router.post(
             {
               id: post.id,
               caption: post.caption,
-              imageUrl: post.imageUrl,
+              imageUrls: post.images.map((image) => image.imageUrl),
               authorName: post.author.name,
               chapterName: post.author.chapter,
               postLink: getPostLink(request, post.id),

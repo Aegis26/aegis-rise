@@ -1,6 +1,7 @@
 import { createInsertSchema } from "drizzle-zod";
 import {
   boolean,
+  integer,
   pgEnum,
   index,
   pgTable,
@@ -109,6 +110,10 @@ export const socialAccountsTable = pgTable(
       .notNull(),
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     isActive: boolean("is_active").default(true).notNull(),
+    isPublishingEligible: boolean("is_publishing_eligible")
+      .default(false)
+      .notNull(),
+    publishingError: text("publishing_error"),
     ...timestamps,
   },
   (table) => [
@@ -163,6 +168,25 @@ export const postsTable = pgTable(
       table.isFeatured,
       table.createdAt,
     ),
+  ],
+);
+
+export const postImagesTable = pgTable(
+  "post_images",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => postsTable.id, { onDelete: "cascade" }),
+    imageUrl: text("image_url").notNull(),
+    position: integer("position").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("post_images_post_position_idx").on(table.postId, table.position),
+    index("post_images_post_id_idx").on(table.postId),
   ],
 );
 
@@ -247,6 +271,10 @@ export const insertShareSchema = createInsertSchema(sharesTable).omit({
   id: true,
   createdAt: true,
 });
+export const insertPostImageSchema = createInsertSchema(postImagesTable).omit({
+  id: true,
+  createdAt: true,
+});
 export const insertSocialAccountSchema = createInsertSchema(
   socialAccountsTable,
 ).omit({ id: true, connectedAt: true, createdAt: true, updatedAt: true });
@@ -262,6 +290,8 @@ export type Member = typeof membersTable.$inferSelect;
 export type NewMember = z.infer<typeof insertMemberSchema>;
 export type Post = typeof postsTable.$inferSelect;
 export type NewPost = z.infer<typeof insertPostSchema>;
+export type PostImage = typeof postImagesTable.$inferSelect;
+export type NewPostImage = z.infer<typeof insertPostImageSchema>;
 export type Share = typeof sharesTable.$inferSelect;
 export type NewShare = z.infer<typeof insertShareSchema>;
 export type SocialAccount = typeof socialAccountsTable.$inferSelect;

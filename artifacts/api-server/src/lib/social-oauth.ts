@@ -25,6 +25,8 @@ export interface SocialTokenResult {
   refreshToken?: string;
   externalUserId: string;
   expiresAt?: Date;
+  isPublishingEligible: boolean;
+  publishingError?: string;
 }
 
 interface ProviderErrorPayload {
@@ -69,7 +71,12 @@ export function getSocialProvider(
         ),
         authorizationUrl: "https://www.facebook.com/v20.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v20.0/oauth/access_token",
-        scopes: ["public_profile"],
+        scopes: [
+          "public_profile",
+          "pages_show_list",
+          "pages_read_engagement",
+          "pages_manage_posts",
+        ],
       };
     case "linkedin":
       return {
@@ -95,7 +102,13 @@ export function getSocialProvider(
         ),
         authorizationUrl: "https://www.facebook.com/v20.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v20.0/oauth/access_token",
-        scopes: ["public_profile"],
+        scopes: [
+          "public_profile",
+          "pages_show_list",
+          "pages_read_engagement",
+          "instagram_basic",
+          "instagram_content_publish",
+        ],
       };
   }
 }
@@ -325,7 +338,6 @@ async function resolveMetaAccount(
   provider: SocialProviderConfig,
   memberAccessToken: string,
   expiresAt: Date | undefined,
-  existingExternalUserId?: string,
 ): Promise<SocialTokenResult> {
   if (provider.platform !== "facebook" && provider.platform !== "instagram") {
     throw new HttpError(500, "This provider does not use Meta account resolution.");
@@ -345,11 +357,65 @@ async function resolveMetaAccount(
       `${provider.label} did not return a member identity.`,
     );
   }
+  const pagesUrl = new URL("https://graph.facebook.com/v20.0/me/accounts");
+  pagesUrl.searchParams.set(
+    "fields",
+    "id,access_token,instagram_business_account{id}",
+  );
+  pagesUrl.searchParams.set("access_token", memberAccessToken);
+  const pages = await fetchJson<MetaPagesResponse>(
+    pagesUrl.toString(),
+    { method: "GET" },
+    provider.label,
+  );
+  const page =
+    provider.platform === "instagram"
+      ? pages.data?.find(
+          (candidate) =>
+            candidate.id &&
+            candidate.access_token &&
+            candidate.instagram_business_account?.id,
+        )
+      : pages.data?.find(
+          (candidate) => candidate.id && candidate.access_token,
+        );
+
+  if (!page?.id || !page.access_token) {
+    return {
+      accessToken: memberAccessToken,
+      refreshToken: memberAccessToken,
+      externalUserId: user.id,
+      expiresAt,
+      isPublishingEligible: false,
+      publishingError:
+        provider.platform === "facebook"
+          ? "Connect a Facebook Page you can publish to, then reconnect."
+          : "Connect an Instagram Business or Creator account to a Facebook Page, then reconnect.",
+    };
+  }
+
+  const targetId =
+    provider.platform === "instagram"
+      ? page.instagram_business_account?.id
+      : page.id;
+  if (!targetId) {
+    return {
+      accessToken: memberAccessToken,
+      refreshToken: memberAccessToken,
+      externalUserId: user.id,
+      expiresAt,
+      isPublishingEligible: false,
+      publishingError:
+        "Connect an Instagram Business or Creator account to a Facebook Page, then reconnect.",
+    };
+  }
+
   return {
-    accessToken: memberAccessToken,
-    refreshToken: memberAccessToken,
-    externalUserId: existingExternalUserId ?? user.id,
+    accessToken: page.access_token,
+    refreshToken: page.access_token,
+    externalUserId: targetId,
     expiresAt,
+    isPublishingEligible: true,
   };
 }
 
@@ -395,6 +461,7 @@ async function exchangeLinkedInAuthorizationCode(
     refreshToken: token.refresh_token,
     externalUserId: profile.sub,
     expiresAt: expiryFromSeconds(token.expires_in),
+    isPublishingEligible: true,
   };
 }
 
@@ -441,7 +508,6 @@ export async function refreshLinkedInAccessToken(
 export async function refreshMetaAccessToken(
   provider: SocialProviderConfig,
   refreshToken: string,
-  existingExternalUserId: string,
 ): Promise<SocialTokenResult> {
   const longLivedToken = await exchangeMetaForLongLivedToken(
     provider,
@@ -451,6 +517,5 @@ export async function refreshMetaAccessToken(
     provider,
     longLivedToken.access_token,
     expiryFromSeconds(longLivedToken.expires_in),
-    existingExternalUserId,
   );
 }

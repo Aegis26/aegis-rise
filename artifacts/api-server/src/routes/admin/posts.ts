@@ -1,8 +1,23 @@
 import { Router, type IRouter } from "express";
-import { and, asc, count, desc, eq, sql, type SQL } from "drizzle-orm";
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  inArray,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
-import { db, membersTable, postsTable, sharesTable } from "../../db";
+import {
+  db,
+  membersTable,
+  postImagesTable,
+  postsTable,
+  sharesTable,
+} from "../../db";
 import { requireAdmin } from "../../middleware/auth";
 import { HttpError } from "../../utils/errors";
 import {
@@ -74,8 +89,9 @@ function serializeAdminPost(
         shares: number;
         createdAt: Date;
         updatedAt: Date;
-      }
+    }
     : never,
+  images: Array<{ id: string; imageUrl: string; position: number }> = [],
 ) {
   return {
     postId: row.postId,
@@ -86,12 +102,49 @@ function serializeAdminPost(
     },
     caption: truncateAdminCaption(row.caption),
     imageUrl: row.imageUrl,
+    images,
     shares: Number(row.shares),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     featuredAt: row.featuredAt,
     status: row.isFeatured ? "featured" : "normal",
   };
+}
+
+async function serializeAdminPosts(
+  rows: Parameters<typeof serializeAdminPost>[0][],
+) {
+  if (rows.length === 0) {
+    return [];
+  }
+
+  const imageRows = await db
+    .select({
+      id: postImagesTable.id,
+      postId: postImagesTable.postId,
+      imageUrl: postImagesTable.imageUrl,
+      position: postImagesTable.position,
+    })
+    .from(postImagesTable)
+    .where(inArray(postImagesTable.postId, rows.map((row) => row.postId)))
+    .orderBy(asc(postImagesTable.position));
+  const imagesByPostId = new Map<
+    string,
+    Array<{ id: string; imageUrl: string; position: number }>
+  >();
+  for (const image of imageRows) {
+    const images = imagesByPostId.get(image.postId) ?? [];
+    images.push({
+      id: image.id,
+      imageUrl: image.imageUrl,
+      position: image.position,
+    });
+    imagesByPostId.set(image.postId, images);
+  }
+
+  return rows.map((row) =>
+    serializeAdminPost(row, imagesByPostId.get(row.postId) ?? []),
+  );
 }
 
 async function loadAdminPost(postId: string) {
@@ -169,7 +222,7 @@ router.get("/admin/posts", requireAdmin, async (request, response, next) => {
 
     const total = Number(totalRows[0]?.total ?? 0);
     response.json({
-      posts: rows.map(serializeAdminPost),
+      posts: await serializeAdminPosts(rows),
       pagination: buildAdminPagination(input.page, input.limit, total),
     });
   } catch (error) {
@@ -228,7 +281,7 @@ async function setFeaturedStatus(
     throw new HttpError(404, "Post not found.");
   }
 
-  response.json({ post: serializeAdminPost(post) });
+  response.json({ post: (await serializeAdminPosts([post]))[0] });
 }
 
 router.patch(

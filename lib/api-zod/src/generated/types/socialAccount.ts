@@ -13,4 +13,7 @@ export interface SocialAccount {
   /** @nullable */
   expiresAt?: Date | null;
   isActive: boolean;
+  isPublishingEligible: boolean;
+  /** @nullable */
+  publishingError?: string | null;
 }

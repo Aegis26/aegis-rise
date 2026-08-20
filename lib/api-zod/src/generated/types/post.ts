@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { PostAuthor } from './postAuthor';
+import type { PostImage } from './postImage';
 import type { PostStatus } from './postStatus';
 
 export interface Post {
@@ -13,6 +14,8 @@ export interface Post {
   caption: string;
   /** @nullable */
   imageUrl?: string | null;
+  /** @maxItems 10 */
+  images: PostImage[];
   status: PostStatus;
   isFeatured: boolean;
   /** @nullable */

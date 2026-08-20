@@ -11,6 +11,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PostGallery } from "@/components/feed/post-gallery";
 
 export default function PublicProfile({ memberId }: { memberId: string }) {
   const { data: memberData, isLoading: memberLoading } = useGetMember(memberId, {
@@ -121,11 +122,10 @@ export default function PublicProfile({ memberId }: { memberId: string }) {
                 </CardHeader>
                 <CardContent className="p-4 pt-0">
                   <p className="whitespace-pre-wrap">{post.caption}</p>
-                  {post.imageUrl && (
-                    <div className="mt-4 rounded-md overflow-hidden border border-border">
-                      <img src={post.imageUrl} alt="Post attachment" className="w-full max-h-[500px] object-cover" />
-                    </div>
-                  )}
+                  <PostGallery
+                    images={post.images}
+                    legacyImageUrl={post.imageUrl}
+                  />
                 </CardContent>
                 <div className="px-4 py-3 border-t border-border bg-muted/20 flex items-center gap-2 text-sm text-muted-foreground">
                   <Share2 className="h-4 w-4" />

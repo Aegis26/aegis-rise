@@ -81,7 +81,9 @@ export const ListSocialAccountsResponse = zod.object({
   "platform": zod.enum(['facebook', 'linkedin', 'instagram']),
   "connectedAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date().nullish(),
-  "isActive": zod.boolean()
+  "isActive": zod.boolean(),
+  "isPublishingEligible": zod.boolean(),
+  "publishingError": zod.string().nullish()
 }))
 })
 
@@ -181,6 +183,12 @@ export const GetMemberResponse = zod.object({
 })
 
 
+export const listMemberPostsResponsePostsItemImagesItemPositionMin = 0;
+
+export const listMemberPostsResponsePostsItemImagesMax = 10;
+
+
+
 export const ListMemberPostsResponse = zod.object({
   "member": zod.object({
   "id": zod.string().uuid(),
@@ -194,6 +202,11 @@ export const ListMemberPostsResponse = zod.object({
   "id": zod.string().uuid(),
   "caption": zod.string(),
   "imageUrl": zod.string().url().nullish(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "imageUrl": zod.string().url(),
+  "position": zod.number().int().min(listMemberPostsResponsePostsItemImagesItemPositionMin)
+})).max(listMemberPostsResponsePostsItemImagesMax),
   "status": zod.enum(['featured', 'normal']),
   "isFeatured": zod.boolean(),
   "featuredAt": zod.coerce.date().nullish(),
@@ -222,18 +235,32 @@ export const ListMemberPostsResponse = zod.object({
 
 export const createPostBodyCaptionMax = 5000;
 
+export const createPostBodyImageUrlsMax = 10;
+
 
 
 export const CreatePostBody = zod.object({
   "caption": zod.string().min(1).max(createPostBodyCaptionMax),
-  "imageUrl": zod.string().url().nullish()
+  "imageUrl": zod.string().url().nullish(),
+  "imageUrls": zod.array(zod.string().url()).min(1).max(createPostBodyImageUrlsMax).optional()
 })
+
+export const createPostResponsePostImagesItemPositionMin = 0;
+
+export const createPostResponsePostImagesMax = 10;
+
+
 
 export const CreatePostResponse = zod.object({
   "post": zod.object({
   "id": zod.string().uuid(),
   "caption": zod.string(),
   "imageUrl": zod.string().url().nullish(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "imageUrl": zod.string().url(),
+  "position": zod.number().int().min(createPostResponsePostImagesItemPositionMin)
+})).max(createPostResponsePostImagesMax),
   "status": zod.enum(['featured', 'normal']),
   "isFeatured": zod.boolean(),
   "featuredAt": zod.coerce.date().nullish(),
@@ -252,11 +279,22 @@ export const CreatePostResponse = zod.object({
 })
 
 
+export const getFeedResponsePostsItemImagesItemPositionMin = 0;
+
+export const getFeedResponsePostsItemImagesMax = 10;
+
+
+
 export const GetFeedResponse = zod.object({
   "posts": zod.array(zod.object({
   "id": zod.string().uuid(),
   "caption": zod.string(),
   "imageUrl": zod.string().url().nullish(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "imageUrl": zod.string().url(),
+  "position": zod.number().int().min(getFeedResponsePostsItemImagesItemPositionMin)
+})).max(getFeedResponsePostsItemImagesMax),
   "status": zod.enum(['featured', 'normal']),
   "isFeatured": zod.boolean(),
   "featuredAt": zod.coerce.date().nullish(),
@@ -283,11 +321,22 @@ export const GetFeedResponse = zod.object({
 })
 
 
+export const getPostResponsePostImagesItemPositionMin = 0;
+
+export const getPostResponsePostImagesMax = 10;
+
+
+
 export const GetPostResponse = zod.object({
   "post": zod.object({
   "id": zod.string().uuid(),
   "caption": zod.string(),
   "imageUrl": zod.string().url().nullish(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "imageUrl": zod.string().url(),
+  "position": zod.number().int().min(getPostResponsePostImagesItemPositionMin)
+})).max(getPostResponsePostImagesMax),
   "status": zod.enum(['featured', 'normal']),
   "isFeatured": zod.boolean(),
   "featuredAt": zod.coerce.date().nullish(),
@@ -374,6 +423,12 @@ export const GetAdminOverviewResponse = zod.object({
 })
 
 
+export const listAdminPostsResponsePostsItemImagesItemPositionMin = 0;
+
+export const listAdminPostsResponsePostsItemImagesMax = 10;
+
+
+
 export const ListAdminPostsResponse = zod.object({
   "posts": zod.array(zod.object({
   "postId": zod.string().uuid(),
@@ -387,6 +442,11 @@ export const ListAdminPostsResponse = zod.object({
 }),
   "caption": zod.string(),
   "imageUrl": zod.string().url().nullish(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "imageUrl": zod.string().url(),
+  "position": zod.number().int().min(listAdminPostsResponsePostsItemImagesItemPositionMin)
+})).max(listAdminPostsResponsePostsItemImagesMax),
   "shares": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -404,6 +464,12 @@ export const ListAdminPostsResponse = zod.object({
 })
 
 
+export const featurePostResponsePostImagesItemPositionMin = 0;
+
+export const featurePostResponsePostImagesMax = 10;
+
+
+
 export const FeaturePostResponse = zod.object({
   "post": zod.object({
   "postId": zod.string().uuid(),
@@ -417,6 +483,11 @@ export const FeaturePostResponse = zod.object({
 }),
   "caption": zod.string(),
   "imageUrl": zod.string().url().nullish(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "imageUrl": zod.string().url(),
+  "position": zod.number().int().min(featurePostResponsePostImagesItemPositionMin)
+})).max(featurePostResponsePostImagesMax),
   "shares": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
@@ -424,6 +495,12 @@ export const FeaturePostResponse = zod.object({
   "status": zod.enum(['featured', 'normal'])
 })
 })
+
+
+export const unfeaturePostResponsePostImagesItemPositionMin = 0;
+
+export const unfeaturePostResponsePostImagesMax = 10;
+
 
 
 export const UnfeaturePostResponse = zod.object({
@@ -439,6 +516,11 @@ export const UnfeaturePostResponse = zod.object({
 }),
   "caption": zod.string(),
   "imageUrl": zod.string().url().nullish(),
+  "images": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "imageUrl": zod.string().url(),
+  "position": zod.number().int().min(unfeaturePostResponsePostImagesItemPositionMin)
+})).max(unfeaturePostResponsePostImagesMax),
   "shares": zod.number().int(),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),

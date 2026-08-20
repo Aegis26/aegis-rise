@@ -80,6 +80,7 @@ export * from './post';
 export * from './postAnalyticsResult';
 export * from './postAnalyticsResultPostsItem';
 export * from './postAuthor';
+export * from './postImage';
 export * from './postInput';
 export * from './postResponse';
 export * from './postStatus';

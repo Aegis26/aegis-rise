@@ -218,11 +218,20 @@ export const PostStatus = {
   normal: 'normal',
 } as const;
 
+export interface PostImage {
+  id: string;
+  imageUrl: string;
+  /** @minimum 0 */
+  position: number;
+}
+
 export interface Post {
   id: string;
   caption: string;
   /** @nullable */
   imageUrl?: string | null;
+  /** @maxItems 10 */
+  images: PostImage[];
   status: PostStatus;
   isFeatured: boolean;
   /** @nullable */
@@ -241,6 +250,11 @@ export interface PostInput {
   caption: string;
   /** @nullable */
   imageUrl?: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  imageUrls?: string[];
 }
 
 export interface PostResponse {
@@ -309,6 +323,9 @@ export interface SocialAccount {
   /** @nullable */
   expiresAt?: string | null;
   isActive: boolean;
+  isPublishingEligible: boolean;
+  /** @nullable */
+  publishingError?: string | null;
 }
 
 export interface SocialAccountList {
@@ -388,6 +405,8 @@ export interface AdminPost {
   caption: string;
   /** @nullable */
   imageUrl?: string | null;
+  /** @maxItems 10 */
+  images: PostImage[];
   shares: number;
   createdAt: string;
   updatedAt: string;

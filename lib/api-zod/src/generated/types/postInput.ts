@@ -14,4 +14,9 @@ export interface PostInput {
   caption: string;
   /** @nullable */
   imageUrl?: string | null;
+  /**
+     * @minItems 1
+     * @maxItems 10
+     */
+  imageUrls?: string[];
 }
