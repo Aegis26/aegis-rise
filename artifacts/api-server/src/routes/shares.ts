@@ -163,7 +163,7 @@ router.post(
       let autoPosted: AutoPostResults = {};
       const publishablePlatforms =
         sharingMember?.preferredPostPlatforms.filter(
-          (platform) => platform !== "facebook",
+          (platform) => platform !== "facebook" && platform !== "instagram",
         ) ?? [];
 
       if (shouldAutoPost && publishablePlatforms.length) {

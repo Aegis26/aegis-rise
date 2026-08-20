@@ -89,7 +89,7 @@ router.patch("/members/me", requireAuth, async (request, response, next) => {
   try {
     const update = updateProfileSchema.parse(request.body);
     const preferredPostPlatforms = update.preferredPostPlatforms?.filter(
-      (platform) => platform !== "facebook",
+      (platform) => platform !== "facebook" && platform !== "instagram",
     );
     const [member] = await db
       .update(membersTable)

@@ -95,12 +95,7 @@ export function getSocialProvider(
         ),
         authorizationUrl: "https://www.facebook.com/v20.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v20.0/oauth/access_token",
-        scopes: [
-          "pages_show_list",
-          "pages_read_engagement",
-          "instagram_basic",
-          "instagram_content_publish",
-        ],
+        scopes: ["public_profile"],
       };
   }
 }
@@ -332,68 +327,28 @@ async function resolveMetaAccount(
   expiresAt: Date | undefined,
   existingExternalUserId?: string,
 ): Promise<SocialTokenResult> {
-  if (provider.platform === "facebook") {
-    const userUrl = new URL("https://graph.facebook.com/v20.0/me");
-    userUrl.searchParams.set("fields", "id");
-    userUrl.searchParams.set("access_token", memberAccessToken);
-    const user = await fetchJson<MetaUser>(
-      userUrl.toString(),
-      { method: "GET" },
-      provider.label,
-    );
-    if (!user.id) {
-      throw new HttpError(409, "Facebook did not return a member identity.");
-    }
-    return {
-      accessToken: memberAccessToken,
-      refreshToken: memberAccessToken,
-      externalUserId: existingExternalUserId ?? user.id,
-      expiresAt,
-    };
+  if (provider.platform !== "facebook" && provider.platform !== "instagram") {
+    throw new HttpError(500, "This provider does not use Meta account resolution.");
   }
 
-  const pagesUrl = new URL("https://graph.facebook.com/v20.0/me/accounts");
-  pagesUrl.searchParams.set(
-    "fields",
-    provider.platform === "instagram"
-      ? "id,access_token,instagram_business_account{id}"
-      : "id,access_token",
-  );
-  pagesUrl.searchParams.set("access_token", memberAccessToken);
-  const pages = await fetchJson<MetaPagesResponse>(
-    pagesUrl.toString(),
+  const userUrl = new URL("https://graph.facebook.com/v20.0/me");
+  userUrl.searchParams.set("fields", "id");
+  userUrl.searchParams.set("access_token", memberAccessToken);
+  const user = await fetchJson<MetaUser>(
+    userUrl.toString(),
     { method: "GET" },
     provider.label,
   );
-
-  const selectedPage = pages.data?.find((page) => {
-    const externalUserId =
-      provider.platform === "instagram"
-        ? page.instagram_business_account?.id
-        : page.id;
-    return Boolean(externalUserId) && (
-      !existingExternalUserId || externalUserId === existingExternalUserId
-    );
-  });
-  const externalUserId =
-    provider.platform === "instagram"
-      ? selectedPage?.instagram_business_account?.id
-      : selectedPage?.id;
-  const accessToken = selectedPage?.access_token ?? memberAccessToken;
-
-  if (!externalUserId || !accessToken) {
+  if (!user.id) {
     throw new HttpError(
       409,
-      provider.platform === "instagram"
-        ? "Instagram requires a connected professional account and Facebook Page."
-        : "Facebook requires a Page you can manage.",
+      `${provider.label} did not return a member identity.`,
     );
   }
-
   return {
-    accessToken,
+    accessToken: memberAccessToken,
     refreshToken: memberAccessToken,
-    externalUserId,
+    externalUserId: existingExternalUserId ?? user.id,
     expiresAt,
   };
 }

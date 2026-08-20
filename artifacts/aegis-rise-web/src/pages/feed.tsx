@@ -207,7 +207,9 @@ export default function Feed() {
     currentMemberData?.member.preferredPostPlatforms ?? []
   ).filter(
     (platform) =>
-      platform !== "facebook" && activeConnectedPlatforms.has(platform),
+      platform !== "facebook" &&
+      platform !== "instagram" &&
+      activeConnectedPlatforms.has(platform),
   );
 
   return (

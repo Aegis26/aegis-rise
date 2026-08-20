@@ -57,7 +57,7 @@ const SOCIAL_PLATFORMS: Array<{
 }> = [
   { value: "linkedin", label: "LinkedIn", canAutoPost: true },
   { value: "facebook", label: "Facebook", canAutoPost: false },
-  { value: "instagram", label: "Instagram", canAutoPost: true },
+  { value: "instagram", label: "Instagram", canAutoPost: false },
 ];
 
 function getAuthorizationUrl(result: unknown): string | undefined {
@@ -133,7 +133,7 @@ export default function Profile() {
         primaryColor: memberData.member.primaryColor || "#00aaff",
         autoPostShares: memberData.member.autoPostShares,
         preferredPostPlatforms: memberData.member.preferredPostPlatforms.filter(
-          (platform) => platform !== "facebook",
+          (platform) => platform !== "facebook" && platform !== "instagram",
         ),
       });
     }
@@ -482,7 +482,7 @@ export default function Profile() {
                             })}
                           </div>
                           <FormDescription>
-                            Connect LinkedIn or Instagram before selecting it. Facebook is available for account authentication only.
+                            Connect LinkedIn before selecting it. Facebook and Instagram are available for account authentication only.
                           </FormDescription>
                         </FormItem>
                       )}
@@ -513,7 +513,7 @@ export default function Profile() {
                               ) : (
                                 <span className="text-xs text-muted-foreground">Not connected</span>
                               )}
-                              {platform.value === "facebook" && (
+                              {!platform.canAutoPost && (
                                 <span className="text-xs text-muted-foreground">
                                   Authentication only
                                 </span>

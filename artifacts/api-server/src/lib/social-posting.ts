@@ -151,11 +151,11 @@ export async function postToSocial(
 ): Promise<SocialPostOutcome> {
   const platform = account.platform as SupportedSocialPlatform;
   try {
-    if (platform === "facebook") {
+    if (platform === "facebook" || platform === "instagram") {
       return {
         status: "error",
         error:
-          "Facebook is connected for account authentication only and cannot auto-post in this MVP.",
+          `${platform === "facebook" ? "Facebook" : "Instagram"} is connected for account authentication only and cannot auto-post in this MVP.`,
       };
     }
 
@@ -167,50 +167,6 @@ export async function postToSocial(
       post.chapterName,
       post.postLink,
     );
-
-    if (platform === "instagram") {
-      if (!post.imageUrl) {
-        throw new Error("Instagram requires a post image before it can be auto-posted.");
-      }
-
-      const mediaBody = new URLSearchParams({
-        image_url: post.imageUrl,
-        caption,
-        access_token: accessToken,
-      });
-      const { body: container } = await providerFetch(
-        `https://graph.facebook.com/v20.0/${encodeURIComponent(account.externalUserId)}/media`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/x-www-form-urlencoded" },
-          body: mediaBody,
-        },
-        "Instagram",
-      );
-      if (!container.id) {
-        throw new Error("Instagram did not create a media container.");
-      }
-
-      const publishBody = new URLSearchParams({
-        creation_id: container.id,
-        access_token: accessToken,
-      });
-      const { body: published } = await providerFetch(
-        `https://graph.facebook.com/v20.0/${encodeURIComponent(account.externalUserId)}/media_publish`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/x-www-form-urlencoded" },
-          body: publishBody,
-        },
-        "Instagram",
-      );
-      return {
-        status: "success",
-        externalUrl: published.id
-          ? `https://www.instagram.com/p/${published.id}`
-          : undefined,
-      };
-    }
 
     const { response } = await providerFetch(
       "https://api.linkedin.com/rest/posts",
