@@ -1,0 +1,79 @@
+Build Phase 2 of Aegis Rise: Multi-image posts with carousel display and auto-posting to LinkedIn, Facebook, and Instagram.
+
+PHASE 2 GOAL: Members can upload multiple images (1-10), reorder them, see them as a carousel in the feed, and have all images auto-post to LinkedIn, Facebook, and Instagram simultaneously.
+
+REQUIREMENTS:
+
+1. DATABASE UPDATES:
+- Modify Posts table to support multiple images (create PostImage table or image array)
+- Each image: id, postId, imageUrl, position (for ordering)
+- Support 1-10 images per post
+
+2. UPLOAD & REORDERING:
+- Frontend: Multiple file input ("Add up to 10 images")
+- Show preview grid as images upload
+- Drag-and-drop to reorder images
+- Delete button for each image
+- Visual counter (5/10 images)
+- Rate limit: 10 uploads per minute per member
+
+3. FEED DISPLAY - CAROUSEL:
+- Display images as carousel/gallery
+- Left/right arrows to navigate
+- Dot indicators showing current image
+- Click to expand full-screen
+- Swipe support on mobile
+- Lazy-load non-first images
+
+4. AUTO-POSTING TO LINKEDIN:
+- When post is created with autoPost=true:
+  - Upload all images to LinkedIn
+  - Create multi-image post with caption
+  - All images appear in the LinkedIn post
+  - Test with 3+ images
+
+5. AUTO-POSTING TO FACEBOOK:
+- Facebook currently has auth-only scope
+- Add proper Facebook Page posting scopes (pages_manage_posts, pages_read_engagement)
+- When post is created with autoPost=true AND Facebook selected:
+  - Upload images to Facebook
+  - Create album or multi-image post
+  - Post caption with images
+  - Members need Facebook Business Page for this to work
+  - Graceful fallback if not a Business Page
+
+6. AUTO-POSTING TO INSTAGRAM:
+- Instagram currently has auth-only scope
+- Add proper Instagram Business Account scopes (instagram_content_publish, instagram_basic)
+- When post is created with autoPost=true AND Instagram selected:
+  - Upload images to Instagram
+  - Create carousel post (if multiple images) or single image post
+  - Post caption with images
+  - Members need Instagram Business Account for this to work
+  - Graceful fallback if not a Business Account
+
+7. ERROR HANDLING:
+- If one platform fails (e.g. Facebook), others still post
+- Show user which platforms succeeded/failed
+- Provide clear error messages (Business Page required, etc.)
+- Log all failures for debugging
+
+8. TESTING:
+- Upload 1, 3, 5, 10 images
+- Reorder images and verify order persists
+- View carousel in feed - test navigation
+- Create post with all 3 platforms selected
+- Verify images appear on LinkedIn, Facebook, Instagram
+- Test on mobile - swipe and carousel work
+- Test error cases (Facebook without Business Page, etc.)
+
+DELIVERABLES:
+- Posts support 1-10 images with drag-and-drop reordering
+- Carousel gallery displays in feed with navigation
+- All images auto-post to LinkedIn with correct formatting
+- Facebook auto-posting works with Business Pages
+- Instagram auto-posting works with Business Accounts
+- Graceful error handling for all platforms
+- All features tested end-to-end
+
+When complete, members can post rich, multi-image content that auto-amplifies across all three social platforms.
