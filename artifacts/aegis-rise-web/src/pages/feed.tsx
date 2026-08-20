@@ -8,11 +8,15 @@ import {
   useSharePost,
   useUploadImage,
   useGetPostSharePreview,
+  useGetCurrentMember,
+  useListSocialAccounts,
   getGetPostSharePreviewQueryKey,
   getGetFeedQueryKey,
+  getGetCurrentMemberQueryKey,
+  getListSocialAccountsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Image as ImageIcon, Send, Trash2, Share2, MoreVertical, X } from "lucide-react";
+import { Loader2, Image as ImageIcon, Send, Trash2, Share2, MoreVertical, X, CheckCircle2, AlertCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { Button } from "@/components/ui/button";
@@ -48,12 +52,20 @@ export default function Feed() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [sharingPostId, setSharingPostId] = useState<string>("");
   const [sharePlatform, setSharePlatform] = useState<"LinkedIn" | "Instagram" | "Facebook" | "TikTok" | "Direct Link">("LinkedIn");
+  const [autoPost, setAutoPost] = useState<boolean | null>(null);
+  const [autoPostResults, setAutoPostResults] = useState<Record<string, { status: string; error?: string; externalUrl?: string }> | null>(null);
 
   // Queries
   const { data: feedData, isLoading } = useGetFeed(undefined, {
     query: {
       queryKey: getGetFeedQueryKey(),
     }
+  });
+  const { data: currentMemberData } = useGetCurrentMember({
+    query: { queryKey: getGetCurrentMemberQueryKey() },
+  });
+  const { data: socialAccountsData } = useListSocialAccounts({
+    query: { queryKey: getListSocialAccountsQueryKey() },
   });
 
   // Mutations
@@ -85,7 +97,9 @@ export default function Feed() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetFeedQueryKey() });
-        toast({ title: "Post shared" });
+      },
+      onError: (err: Error) => {
+        toast({ title: "Could not share post", description: err.message, variant: "destructive" });
       }
     }
   });
@@ -155,11 +169,43 @@ export default function Feed() {
     if (platform === "Direct Link" && sharePreview?.caption) {
       await navigator.clipboard?.writeText(sharePreview.caption);
     }
-    sharePostMutation.mutate({
-      postId,
-      data: { platform }
-    });
+    try {
+      const result = await sharePostMutation.mutateAsync({
+        postId,
+        data: {
+          platform,
+          ...(autoPost === null ? {} : { autoPost }),
+        },
+      });
+      setAutoPostResults(result.autoPosted ?? {});
+      const outcomes = Object.values(result.autoPosted ?? {});
+      const failures = outcomes.filter((outcome) => outcome.status === "error").length;
+      toast({
+        title:
+          failures > 0
+            ? "Shared with some social posting issues"
+            : "Post shared",
+        description:
+          outcomes.length > 0
+            ? `${outcomes.length - failures} external post${outcomes.length - failures === 1 ? "" : "s"} completed.`
+            : platform === "Direct Link"
+              ? "Share text copied to your clipboard."
+              : undefined,
+        variant: failures > 0 ? "destructive" : "default",
+      });
+    } catch {
+      // The mutation-level handler provides the member-facing error message.
+    }
   };
+
+  const activeConnectedPlatforms = new Set(
+    (socialAccountsData?.accounts ?? [])
+      .filter((account) => account.isActive)
+      .map((account) => account.platform),
+  );
+  const selectedAutoPlatforms = (
+    currentMemberData?.member.preferredPostPlatforms ?? []
+  ).filter((platform) => activeConnectedPlatforms.has(platform));
 
   return (
     <div className="max-w-3xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-8">
@@ -312,6 +358,12 @@ export default function Feed() {
                     if (open) {
                       setSharingPostId(post.id);
                       setSharePlatform("LinkedIn");
+                       setAutoPost(
+                         currentMemberData
+                           ? currentMemberData.member.autoPostShares
+                           : null,
+                       );
+                       setAutoPostResults(null);
                     }
                   }}>
                     <DialogTrigger asChild>
@@ -338,9 +390,70 @@ export default function Feed() {
                         <div className="rounded-md border border-border bg-muted/30 p-3 text-sm whitespace-pre-wrap" data-testid={`share-preview-${post.id}`}>
                           {sharePreview?.caption ?? "Preparing your platform-ready share text…"}
                         </div>
-                        <Button className="w-full" onClick={() => handleSharePost(post.id, sharePlatform)} data-testid={`button-confirm-share-${post.id}`}>
-                          Share to {sharePlatform === "Direct Link" ? "clipboard" : sharePlatform}
-                        </Button>
+                         <div className="rounded-md border border-primary/20 bg-primary/5 p-3 space-y-3">
+                           <div className="flex items-center justify-between gap-4">
+                             <div>
+                               <p className="text-sm font-medium">Auto-post connected accounts</p>
+                               <p className="text-xs text-muted-foreground">
+                                 You can change your saved platform selection from your profile.
+                               </p>
+                             </div>
+                             <button
+                               type="button"
+                               role="switch"
+                               aria-checked={Boolean(autoPost)}
+                               disabled={selectedAutoPlatforms.length === 0}
+                               onClick={() => setAutoPost(!autoPost)}
+                               data-testid={`switch-auto-post-${post.id}`}
+                               className={`relative h-6 w-11 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
+                                 autoPost ? "bg-primary" : "bg-muted"
+                               }`}
+                             />
+                           </div>
+                           {selectedAutoPlatforms.length > 0 ? (
+                             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                               <span>{autoPost ? "Will also publish to:" : "Connected selections:"}</span>
+                               {selectedAutoPlatforms.map((platform) => (
+                                 <Badge key={platform} variant="secondary" className="capitalize">
+                                   {platform}
+                                 </Badge>
+                               ))}
+                             </div>
+                           ) : (
+                             <p className="text-xs text-muted-foreground">
+                               Connect and select Facebook, LinkedIn, or Instagram in your profile to auto-post.
+                             </p>
+                           )}
+                         </div>
+                         {autoPostResults && Object.keys(autoPostResults).length > 0 && (
+                           <div className="space-y-2 rounded-md border border-border p-3 text-sm">
+                             <p className="font-medium">External posting results</p>
+                             {Object.entries(autoPostResults).map(([platform, outcome]) => (
+                               <div key={platform} className="flex items-start gap-2">
+                                 {outcome.status === "success" ? (
+                                   <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                                 ) : (
+                                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                                 )}
+                                 <span className="capitalize font-medium">{platform}</span>
+                                 <span className="text-muted-foreground">
+                                   {outcome.status === "success"
+                                     ? "published"
+                                     : outcome.error ?? "could not be published"}
+                                 </span>
+                               </div>
+                             ))}
+                           </div>
+                         )}
+                         <Button
+                           className="w-full"
+                           onClick={() => handleSharePost(post.id, sharePlatform)}
+                           disabled={sharePostMutation.isPending}
+                           data-testid={`button-confirm-share-${post.id}`}
+                         >
+                           {sharePostMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                           Share to {sharePlatform === "Direct Link" ? "clipboard" : sharePlatform}
+                         </Button>
                       </div>
                     </DialogContent>
                   </Dialog>

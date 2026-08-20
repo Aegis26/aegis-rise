@@ -7,6 +7,7 @@ import { HttpError } from "../utils/errors";
 
 const router: IRouter = Router();
 const memberIdSchema = z.string().uuid();
+const socialPlatformSchema = z.enum(["facebook", "linkedin", "instagram"]);
 
 const updateProfileSchema = z
   .object({
@@ -17,6 +18,8 @@ const updateProfileSchema = z
     profilePictureUrl: z.string().url().max(2_048).nullable().optional(),
     themePreference: z.enum(["light", "dark"]).optional(),
     primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    autoPostShares: z.boolean().optional(),
+    preferredPostPlatforms: z.array(socialPlatformSchema).max(3).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "Provide at least one profile field to update.",
@@ -61,6 +64,8 @@ router.get("/members/me", requireAuth, async (request, response, next) => {
         profilePictureUrl: membersTable.profilePictureUrl,
         themePreference: membersTable.themePreference,
         primaryColor: membersTable.primaryColor,
+        autoPostShares: membersTable.autoPostShares,
+        preferredPostPlatforms: membersTable.preferredPostPlatforms,
         role: membersTable.role,
         status: membersTable.status,
         createdAt: membersTable.createdAt,
@@ -98,6 +103,8 @@ router.patch("/members/me", requireAuth, async (request, response, next) => {
         profilePictureUrl: membersTable.profilePictureUrl,
         themePreference: membersTable.themePreference,
         primaryColor: membersTable.primaryColor,
+        autoPostShares: membersTable.autoPostShares,
+        preferredPostPlatforms: membersTable.preferredPostPlatforms,
         role: membersTable.role,
         status: membersTable.status,
         createdAt: membersTable.createdAt,

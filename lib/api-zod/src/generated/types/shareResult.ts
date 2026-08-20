@@ -5,8 +5,10 @@
  * Aegis Rise member, social feed, and chapter administration API.
  * OpenAPI spec version: 0.1.0
  */
+import type { ShareResultAutoPosted } from './shareResultAutoPosted';
 
 export interface ShareResult {
   shareCount: number;
   message: string;
+  autoPosted: ShareResultAutoPosted;
 }

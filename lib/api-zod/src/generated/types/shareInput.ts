@@ -9,4 +9,6 @@ import type { ShareInputPlatform } from './shareInputPlatform';
 
 export interface ShareInput {
   platform: ShareInputPlatform;
+  /** Attempt provider posting to the member's selected connected accounts. */
+  autoPost?: boolean;
 }

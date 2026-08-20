@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemberUpdateThemePreference } from './memberUpdateThemePreference';
+import type { SocialPlatform } from './socialPlatform';
 
 export interface MemberUpdate {
   name?: string;
@@ -18,4 +19,7 @@ export interface MemberUpdate {
   themePreference?: MemberUpdateThemePreference;
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   primaryColor?: string;
+  autoPostShares?: boolean;
+  /** @maxItems 3 */
+  preferredPostPlatforms?: SocialPlatform[];
 }

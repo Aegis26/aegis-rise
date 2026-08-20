@@ -50,6 +50,13 @@
       "when": 1787169506154,
       "tag": "0006_last_mad_thinker",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1787193201561,
+      "tag": "0007_left_quicksilver",
+      "breakpoints": true
     }
   ]
 }

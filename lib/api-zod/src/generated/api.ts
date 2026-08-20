@@ -63,6 +63,39 @@ export const LogoutResponse = zod.object({
 })
 
 
+export const CreateSocialConnectionResponse = zod.object({
+  "authorizationUrl": zod.string().url(),
+  "expiresAt": zod.coerce.date(),
+  "provider": zod.string()
+})
+
+
+export const RedirectToSocialProviderResponse = zod.void()
+
+
+export const HandleSocialCallbackResponse = zod.void()
+
+
+export const ListSocialAccountsResponse = zod.object({
+  "accounts": zod.array(zod.object({
+  "platform": zod.enum(['facebook', 'linkedin', 'instagram']),
+  "connectedAt": zod.coerce.date(),
+  "expiresAt": zod.coerce.date().nullish(),
+  "isActive": zod.boolean()
+}))
+})
+
+
+export const DisconnectSocialAccountResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const DisconnectSocialAccountGetResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const GetCurrentMemberResponse = zod.object({
   "member": zod.object({
   "id": zod.string().uuid(),
@@ -75,6 +108,8 @@ export const GetCurrentMemberResponse = zod.object({
   "profilePictureUrl": zod.string().url().nullish(),
   "themePreference": zod.enum(['light', 'dark']),
   "primaryColor": zod.string(),
+  "autoPostShares": zod.boolean(),
+  "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])),
   "role": zod.enum(['member', 'admin', 'super_admin']),
   "status": zod.enum(['pending', 'active', 'banned']),
   "createdAt": zod.coerce.date(),
@@ -84,6 +119,8 @@ export const GetCurrentMemberResponse = zod.object({
 
 
 export const updateCurrentMemberBodyPrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateCurrentMemberBodyPreferredPostPlatformsMax = 3;
+
 
 
 export const UpdateCurrentMemberBody = zod.object({
@@ -93,7 +130,9 @@ export const UpdateCurrentMemberBody = zod.object({
   "bio": zod.string().nullish(),
   "profilePictureUrl": zod.string().url().nullish(),
   "themePreference": zod.enum(['light', 'dark']).optional(),
-  "primaryColor": zod.string().regex(updateCurrentMemberBodyPrimaryColorRegExp).optional()
+  "primaryColor": zod.string().regex(updateCurrentMemberBodyPrimaryColorRegExp).optional(),
+  "autoPostShares": zod.boolean().optional(),
+  "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])).max(updateCurrentMemberBodyPreferredPostPlatformsMax).optional()
 })
 
 export const UpdateCurrentMemberResponse = zod.object({
@@ -108,6 +147,8 @@ export const UpdateCurrentMemberResponse = zod.object({
   "profilePictureUrl": zod.string().url().nullish(),
   "themePreference": zod.enum(['light', 'dark']),
   "primaryColor": zod.string(),
+  "autoPostShares": zod.boolean(),
+  "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])),
   "role": zod.enum(['member', 'admin', 'super_admin']),
   "status": zod.enum(['pending', 'active', 'banned']),
   "createdAt": zod.coerce.date(),
@@ -269,12 +310,18 @@ export const DeleteOwnPostResponse = zod.void()
 
 
 export const SharePostBody = zod.object({
-  "platform": zod.enum(['LinkedIn', 'Instagram', 'Facebook', 'TikTok', 'Direct Link'])
+  "platform": zod.enum(['LinkedIn', 'Instagram', 'Facebook', 'TikTok', 'Direct Link']),
+  "autoPost": zod.boolean().optional().describe('Attempt provider posting to the member\'s selected connected accounts.')
 })
 
 export const SharePostResponse = zod.object({
   "shareCount": zod.number().int(),
-  "message": zod.string()
+  "message": zod.string(),
+  "autoPosted": zod.record(zod.string(), zod.object({
+  "status": zod.enum(['success', 'error']),
+  "externalUrl": zod.string().url().optional(),
+  "error": zod.string().optional()
+}))
 })
 
 

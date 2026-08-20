@@ -8,6 +8,7 @@
 import type { MemberRole } from './memberRole';
 import type { MemberStatus } from './memberStatus';
 import type { MemberThemePreference } from './memberThemePreference';
+import type { SocialPlatform } from './socialPlatform';
 
 export interface Member {
   id: string;
@@ -22,6 +23,8 @@ export interface Member {
   profilePictureUrl?: string | null;
   themePreference: MemberThemePreference;
   primaryColor: string;
+  autoPostShares: boolean;
+  preferredPostPlatforms: SocialPlatform[];
   role: MemberRole;
   status: MemberStatus;
   createdAt: Date;

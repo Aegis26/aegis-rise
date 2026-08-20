@@ -105,6 +105,15 @@ export const MemberStatus = {
   banned: 'banned',
 } as const;
 
+export type SocialPlatform = typeof SocialPlatform[keyof typeof SocialPlatform];
+
+
+export const SocialPlatform = {
+  facebook: 'facebook',
+  linkedin: 'linkedin',
+  instagram: 'instagram',
+} as const;
+
 export interface Member {
   id: string;
   email: string;
@@ -118,6 +127,8 @@ export interface Member {
   profilePictureUrl?: string | null;
   themePreference: MemberThemePreference;
   primaryColor: string;
+  autoPostShares: boolean;
+  preferredPostPlatforms: SocialPlatform[];
   role: MemberRole;
   status: MemberStatus;
   createdAt: string;
@@ -143,6 +154,9 @@ export interface MemberUpdate {
   themePreference?: MemberUpdateThemePreference;
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   primaryColor?: string;
+  autoPostShares?: boolean;
+  /** @maxItems 3 */
+  preferredPostPlatforms?: SocialPlatform[];
 }
 
 export interface MemberResponse {
@@ -257,11 +271,48 @@ export const ShareInputPlatform = {
 
 export interface ShareInput {
   platform: ShareInputPlatform;
+  /** Attempt provider posting to the member's selected connected accounts. */
+  autoPost?: boolean;
 }
+
+export type SocialPostOutcomeStatus = typeof SocialPostOutcomeStatus[keyof typeof SocialPostOutcomeStatus];
+
+
+export const SocialPostOutcomeStatus = {
+  success: 'success',
+  error: 'error',
+} as const;
+
+export interface SocialPostOutcome {
+  status: SocialPostOutcomeStatus;
+  externalUrl?: string;
+  error?: string;
+}
+
+export type ShareResultAutoPosted = {[key: string]: SocialPostOutcome};
 
 export interface ShareResult {
   shareCount: number;
   message: string;
+  autoPosted: ShareResultAutoPosted;
+}
+
+export interface SocialConnectResult {
+  authorizationUrl: string;
+  expiresAt: string;
+  provider: string;
+}
+
+export interface SocialAccount {
+  platform: SocialPlatform;
+  connectedAt: string;
+  /** @nullable */
+  expiresAt?: string | null;
+  isActive: boolean;
+}
+
+export interface SocialAccountList {
+  accounts: SocialAccount[];
 }
 
 export type ShareBreakdownByPlatform = {[key: string]: number};
@@ -562,6 +613,16 @@ export type PageParameter = number;
 export type LimitParameter = number;
 
 export type ChapterParameter = string;
+
+export type RedirectToSocialProviderParams = {
+state: string;
+};
+
+export type HandleSocialCallbackParams = {
+code?: string;
+state: string;
+error?: string;
+};
 
 export type ListMemberPostsParams = {
 /**

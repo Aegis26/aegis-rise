@@ -6,8 +6,10 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { z } from "zod/v4";
 
 export const themePreferenceEnum = pgEnum("theme_preference", ["light", "dark"]);
@@ -27,6 +29,11 @@ export const sharePlatformEnum = pgEnum("share_platform", [
   "Facebook",
   "TikTok",
   "Direct Link",
+]);
+export const socialPlatformEnum = pgEnum("social_platform", [
+  "facebook",
+  "linkedin",
+  "instagram",
 ]);
 export const modActionTypeEnum = pgEnum("mod_action_type", [
   "delete_post",
@@ -71,6 +78,11 @@ export const membersTable = pgTable(
       .default("dark")
       .notNull(),
     primaryColor: text("primary_color").default("#007BFF").notNull(),
+    autoPostShares: boolean("auto_post_shares").default(false).notNull(),
+    preferredPostPlatforms: socialPlatformEnum("preferred_post_platforms")
+      .array()
+      .default(sql`ARRAY[]::social_platform[]`)
+      .notNull(),
     role: memberRoleEnum("role").default("member").notNull(),
     status: memberStatusEnum("status").default("pending").notNull(),
     ...timestamps,
@@ -78,6 +90,57 @@ export const membersTable = pgTable(
   (table) => [
     index("members_chapter_status_idx").on(table.chapter, table.status),
     index("members_created_at_idx").on(table.createdAt),
+  ],
+);
+
+export const socialAccountsTable = pgTable(
+  "social_accounts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => membersTable.id, { onDelete: "cascade" }),
+    platform: socialPlatformEnum("platform").notNull(),
+    accessToken: text("access_token").notNull(),
+    refreshToken: text("refresh_token"),
+    externalUserId: text("external_user_id").notNull(),
+    connectedAt: timestamp("connected_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    isActive: boolean("is_active").default(true).notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("social_accounts_member_platform_idx").on(
+      table.memberId,
+      table.platform,
+    ),
+    index("social_accounts_member_active_idx").on(
+      table.memberId,
+      table.isActive,
+    ),
+  ],
+);
+
+export const socialOAuthStatesTable = pgTable(
+  "social_oauth_states",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    stateHash: text("state_hash").notNull().unique(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => membersTable.id, { onDelete: "cascade" }),
+    platform: socialPlatformEnum("platform").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("social_oauth_states_expiry_idx").on(table.expiresAt),
+    index("social_oauth_states_member_idx").on(table.memberId),
   ],
 );
 
@@ -184,6 +247,9 @@ export const insertShareSchema = createInsertSchema(sharesTable).omit({
   id: true,
   createdAt: true,
 });
+export const insertSocialAccountSchema = createInsertSchema(
+  socialAccountsTable,
+).omit({ id: true, connectedAt: true, createdAt: true, updatedAt: true });
 export const insertChapterConfigSchema = createInsertSchema(
   chapterConfigsTable,
 ).omit({ id: true, updatedAt: true });
@@ -198,6 +264,9 @@ export type Post = typeof postsTable.$inferSelect;
 export type NewPost = z.infer<typeof insertPostSchema>;
 export type Share = typeof sharesTable.$inferSelect;
 export type NewShare = z.infer<typeof insertShareSchema>;
+export type SocialAccount = typeof socialAccountsTable.$inferSelect;
+export type NewSocialAccount = z.infer<typeof insertSocialAccountSchema>;
+export type SocialPlatform = SocialAccount["platform"];
 export type ChapterConfig = typeof chapterConfigsTable.$inferSelect;
 export type NewChapterConfig = z.infer<typeof insertChapterConfigSchema>;
 export type ModAction = typeof modActionsTable.$inferSelect;

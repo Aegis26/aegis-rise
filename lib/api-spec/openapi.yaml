@@ -10,6 +10,7 @@ servers:
 tags:
   - name: health
   - name: auth
+  - name: social
   - name: members
   - name: posts
   - name: shares
@@ -69,6 +70,90 @@ paths:
       responses:
         "200":
           description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+  /auth/social/connect/{platform}:
+    post:
+      operationId: createSocialConnection
+      tags: [social]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SocialPlatform"
+      responses:
+        "200":
+          description: A short-lived browser redirect URL for provider authorization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialConnectResult"
+    get:
+      operationId: redirectToSocialProvider
+      tags: [social]
+      parameters:
+        - $ref: "#/components/parameters/SocialPlatform"
+        - name: state
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to the configured OAuth provider
+  /auth/social/callback/{platform}:
+    get:
+      operationId: handleSocialCallback
+      tags: [social]
+      parameters:
+        - $ref: "#/components/parameters/SocialPlatform"
+        - name: code
+          in: query
+          schema: { type: string }
+        - name: state
+          in: query
+          required: true
+          schema: { type: string }
+        - name: error
+          in: query
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect back to the member profile with the result
+  /auth/social/accounts:
+    get:
+      operationId: listSocialAccounts
+      tags: [social]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Connected social accounts without provider tokens
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SocialAccountList"
+  /auth/social/disconnect/{platform}:
+    delete:
+      operationId: disconnectSocialAccount
+      tags: [social]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SocialPlatform"
+      responses:
+        "200":
+          description: Account disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+    get:
+      operationId: disconnectSocialAccountGet
+      tags: [social]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/SocialPlatform"
+      responses:
+        "200":
+          description: Account disconnected
           content:
             application/json:
               schema:
@@ -646,6 +731,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    SocialPlatform:
+      name: platform
+      in: path
+      required: true
+      schema: { $ref: "#/components/schemas/SocialPlatform" }
   schemas:
     HealthStatus:
       type: object
@@ -710,7 +800,7 @@ components:
         status: { type: string, enum: [pending, active, banned] }
     Member:
       type: object
-      required: [id, email, name, title, company, chapter, themePreference, primaryColor, role, status, createdAt, updatedAt]
+      required: [id, email, name, title, company, chapter, themePreference, primaryColor, autoPostShares, preferredPostPlatforms, role, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -722,6 +812,10 @@ components:
         profilePictureUrl: { type: [string, "null"], format: uri }
         themePreference: { type: string, enum: [light, dark] }
         primaryColor: { type: string }
+        autoPostShares: { type: boolean }
+        preferredPostPlatforms:
+          type: array
+          items: { $ref: "#/components/schemas/SocialPlatform" }
         role: { type: string, enum: [member, admin, super_admin] }
         status: { type: string, enum: [pending, active, banned] }
         createdAt: { type: string, format: date-time }
@@ -736,6 +830,11 @@ components:
         profilePictureUrl: { type: [string, "null"], format: uri }
         themePreference: { type: string, enum: [light, dark] }
         primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        autoPostShares: { type: boolean }
+        preferredPostPlatforms:
+          type: array
+          maxItems: 3
+          items: { $ref: "#/components/schemas/SocialPlatform" }
     MemberResponse:
       type: object
       required: [member]
@@ -827,12 +926,48 @@ components:
       required: [platform]
       properties:
         platform: { type: string, enum: [LinkedIn, Instagram, Facebook, TikTok, Direct Link] }
+        autoPost: { type: boolean, description: Attempt provider posting to the member's selected connected accounts. }
     ShareResult:
       type: object
-      required: [shareCount, message]
+      required: [shareCount, message, autoPosted]
       properties:
         shareCount: { type: integer }
         message: { type: string }
+        autoPosted:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/SocialPostOutcome" }
+    SocialPlatform:
+      type: string
+      enum: [facebook, linkedin, instagram]
+    SocialConnectResult:
+      type: object
+      required: [authorizationUrl, expiresAt, provider]
+      properties:
+        authorizationUrl: { type: string, format: uri }
+        expiresAt: { type: string, format: date-time }
+        provider: { type: string }
+    SocialAccount:
+      type: object
+      required: [platform, connectedAt, isActive]
+      properties:
+        platform: { $ref: "#/components/schemas/SocialPlatform" }
+        connectedAt: { type: string, format: date-time }
+        expiresAt: { type: [string, "null"], format: date-time }
+        isActive: { type: boolean }
+    SocialAccountList:
+      type: object
+      required: [accounts]
+      properties:
+        accounts:
+          type: array
+          items: { $ref: "#/components/schemas/SocialAccount" }
+    SocialPostOutcome:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [success, error] }
+        externalUrl: { type: string, format: uri }
+        error: { type: string }
     ShareBreakdown:
       type: object
       required: [totalShares, byPlatform]

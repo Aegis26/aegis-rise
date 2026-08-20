@@ -39,6 +39,7 @@ import type {
   GuidelinesInput,
   GuidelinesResult,
   GuidelinesUpdateResult,
+  HandleSocialCallbackParams,
   HealthStatus,
   ImageUpload,
   ImageUploadResult,
@@ -66,6 +67,7 @@ import type {
   PostInput,
   PostResponse,
   PublicMemberResponse,
+  RedirectToSocialProviderParams,
   SettingsResult,
   ShareAnalytics,
   ShareBreakdown,
@@ -75,6 +77,8 @@ import type {
   ShareTimelinePoint,
   SignupInput,
   SignupResult,
+  SocialAccountList,
+  SocialConnectResult,
   UpdateChapterGuidelinesParams,
   UpdateChapterSettingsParams
 } from './api.schemas';
@@ -377,6 +381,444 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getLogoutMutationOptions(options));
     }
+
+export const getCreateSocialConnectionUrl = (platform: 'facebook' | 'linkedin' | 'instagram',) => {
+
+
+
+
+  return `/api/auth/social/connect/${platform}`
+}
+
+export const createSocialConnection = async (platform: 'facebook' | 'linkedin' | 'instagram', options?: Parameters<typeof customFetch>[1]): Promise<SocialConnectResult> => {
+
+  return customFetch<SocialConnectResult>(getCreateSocialConnectionUrl(platform),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getCreateSocialConnectionMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSocialConnection>>, TError,{platform: 'facebook' | 'linkedin' | 'instagram'}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createSocialConnection>>, TError,{platform: 'facebook' | 'linkedin' | 'instagram'}, TContext> => {
+
+const mutationKey = ['createSocialConnection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createSocialConnection>>, {platform: 'facebook' | 'linkedin' | 'instagram'}> = (props) => {
+          const {platform} = props ?? {};
+
+          return  createSocialConnection(platform,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateSocialConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof createSocialConnection>>>
+
+    export type CreateSocialConnectionMutationError = ErrorType<unknown>
+
+    export const useCreateSocialConnection = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createSocialConnection>>, TError,{platform: 'facebook' | 'linkedin' | 'instagram'}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createSocialConnection>>,
+        TError,
+        {platform: 'facebook' | 'linkedin' | 'instagram'},
+        TContext
+      > => {
+      return useMutation(getCreateSocialConnectionMutationOptions(options));
+    }
+
+export const getRedirectToSocialProviderUrl = (platform: 'facebook' | 'linkedin' | 'instagram',
+    params: RedirectToSocialProviderParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auth/social/connect/${platform}?${stringifiedParams}` : `/api/auth/social/connect/${platform}`
+}
+
+export const redirectToSocialProvider = async (platform: 'facebook' | 'linkedin' | 'instagram',
+    params: RedirectToSocialProviderParams, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getRedirectToSocialProviderUrl(platform,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getRedirectToSocialProviderQueryKey = (platform: 'facebook' | 'linkedin' | 'instagram',
+    params?: RedirectToSocialProviderParams,) => {
+    return [
+    `/api/auth/social/connect/${platform}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getRedirectToSocialProviderQueryOptions = <TData = Awaited<ReturnType<typeof redirectToSocialProvider>>, TError = ErrorType<void>>(platform: 'facebook' | 'linkedin' | 'instagram',
+    params: RedirectToSocialProviderParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof redirectToSocialProvider>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getRedirectToSocialProviderQueryKey(platform,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof redirectToSocialProvider>>> = ({ signal }) => redirectToSocialProvider(platform,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: platform !== null && platform !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof redirectToSocialProvider>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type RedirectToSocialProviderQueryResult = NonNullable<Awaited<ReturnType<typeof redirectToSocialProvider>>>
+export type RedirectToSocialProviderQueryError = ErrorType<void>
+
+
+
+export function useRedirectToSocialProvider<TData = Awaited<ReturnType<typeof redirectToSocialProvider>>, TError = ErrorType<void>>(
+ platform: 'facebook' | 'linkedin' | 'instagram',
+    params: RedirectToSocialProviderParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof redirectToSocialProvider>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getRedirectToSocialProviderQueryOptions(platform,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getHandleSocialCallbackUrl = (platform: 'facebook' | 'linkedin' | 'instagram',
+    params: HandleSocialCallbackParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/auth/social/callback/${platform}?${stringifiedParams}` : `/api/auth/social/callback/${platform}`
+}
+
+export const handleSocialCallback = async (platform: 'facebook' | 'linkedin' | 'instagram',
+    params: HandleSocialCallbackParams, options?: Parameters<typeof customFetch>[1]): Promise<unknown> => {
+
+  return customFetch<unknown>(getHandleSocialCallbackUrl(platform,params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getHandleSocialCallbackQueryKey = (platform: 'facebook' | 'linkedin' | 'instagram',
+    params?: HandleSocialCallbackParams,) => {
+    return [
+    `/api/auth/social/callback/${platform}`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getHandleSocialCallbackQueryOptions = <TData = Awaited<ReturnType<typeof handleSocialCallback>>, TError = ErrorType<void>>(platform: 'facebook' | 'linkedin' | 'instagram',
+    params: HandleSocialCallbackParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof handleSocialCallback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getHandleSocialCallbackQueryKey(platform,params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof handleSocialCallback>>> = ({ signal }) => handleSocialCallback(platform,params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: platform !== null && platform !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof handleSocialCallback>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type HandleSocialCallbackQueryResult = NonNullable<Awaited<ReturnType<typeof handleSocialCallback>>>
+export type HandleSocialCallbackQueryError = ErrorType<void>
+
+
+
+export function useHandleSocialCallback<TData = Awaited<ReturnType<typeof handleSocialCallback>>, TError = ErrorType<void>>(
+ platform: 'facebook' | 'linkedin' | 'instagram',
+    params: HandleSocialCallbackParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof handleSocialCallback>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getHandleSocialCallbackQueryOptions(platform,params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListSocialAccountsUrl = () => {
+
+
+
+
+  return `/api/auth/social/accounts`
+}
+
+export const listSocialAccounts = async ( options?: Parameters<typeof customFetch>[1]): Promise<SocialAccountList> => {
+
+  return customFetch<SocialAccountList>(getListSocialAccountsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListSocialAccountsQueryKey = () => {
+    return [
+    `/api/auth/social/accounts`
+    ] as const;
+    }
+
+
+export const getListSocialAccountsQueryOptions = <TData = Awaited<ReturnType<typeof listSocialAccounts>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSocialAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListSocialAccountsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listSocialAccounts>>> = ({ signal }) => listSocialAccounts({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listSocialAccounts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListSocialAccountsQueryResult = NonNullable<Awaited<ReturnType<typeof listSocialAccounts>>>
+export type ListSocialAccountsQueryError = ErrorType<unknown>
+
+
+
+export function useListSocialAccounts<TData = Awaited<ReturnType<typeof listSocialAccounts>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listSocialAccounts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListSocialAccountsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getDisconnectSocialAccountUrl = (platform: 'facebook' | 'linkedin' | 'instagram',) => {
+
+
+
+
+  return `/api/auth/social/disconnect/${platform}`
+}
+
+export const disconnectSocialAccount = async (platform: 'facebook' | 'linkedin' | 'instagram', options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+  return customFetch<Message>(getDisconnectSocialAccountUrl(platform),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectSocialAccountMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectSocialAccount>>, TError,{platform: 'facebook' | 'linkedin' | 'instagram'}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof disconnectSocialAccount>>, TError,{platform: 'facebook' | 'linkedin' | 'instagram'}, TContext> => {
+
+const mutationKey = ['disconnectSocialAccount'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof disconnectSocialAccount>>, {platform: 'facebook' | 'linkedin' | 'instagram'}> = (props) => {
+          const {platform} = props ?? {};
+
+          return  disconnectSocialAccount(platform,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DisconnectSocialAccountMutationResult = NonNullable<Awaited<ReturnType<typeof disconnectSocialAccount>>>
+
+    export type DisconnectSocialAccountMutationError = ErrorType<unknown>
+
+    export const useDisconnectSocialAccount = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof disconnectSocialAccount>>, TError,{platform: 'facebook' | 'linkedin' | 'instagram'}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof disconnectSocialAccount>>,
+        TError,
+        {platform: 'facebook' | 'linkedin' | 'instagram'},
+        TContext
+      > => {
+      return useMutation(getDisconnectSocialAccountMutationOptions(options));
+    }
+
+export const getDisconnectSocialAccountGetUrl = (platform: 'facebook' | 'linkedin' | 'instagram',) => {
+
+
+
+
+  return `/api/auth/social/disconnect/${platform}`
+}
+
+export const disconnectSocialAccountGet = async (platform: 'facebook' | 'linkedin' | 'instagram', options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+  return customFetch<Message>(getDisconnectSocialAccountGetUrl(platform),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getDisconnectSocialAccountGetQueryKey = (platform: 'facebook' | 'linkedin' | 'instagram',) => {
+    return [
+    `/api/auth/social/disconnect/${platform}`
+    ] as const;
+    }
+
+
+export const getDisconnectSocialAccountGetQueryOptions = <TData = Awaited<ReturnType<typeof disconnectSocialAccountGet>>, TError = ErrorType<unknown>>(platform: 'facebook' | 'linkedin' | 'instagram', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof disconnectSocialAccountGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getDisconnectSocialAccountGetQueryKey(platform);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof disconnectSocialAccountGet>>> = ({ signal }) => disconnectSocialAccountGet(platform, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: platform !== null && platform !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof disconnectSocialAccountGet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type DisconnectSocialAccountGetQueryResult = NonNullable<Awaited<ReturnType<typeof disconnectSocialAccountGet>>>
+export type DisconnectSocialAccountGetQueryError = ErrorType<unknown>
+
+
+
+export function useDisconnectSocialAccountGet<TData = Awaited<ReturnType<typeof disconnectSocialAccountGet>>, TError = ErrorType<unknown>>(
+ platform: 'facebook' | 'linkedin' | 'instagram', options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof disconnectSocialAccountGet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getDisconnectSocialAccountGetQueryOptions(platform,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetCurrentMemberUrl = () => {
 

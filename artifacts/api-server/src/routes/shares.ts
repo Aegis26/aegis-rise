@@ -15,6 +15,10 @@ import {
   getShareNote,
   sharePlatforms,
 } from "../lib/share-formatting";
+import {
+  autoPostToConnectedAccounts,
+  type AutoPostResults,
+} from "../lib/social-posting";
 import { findVisiblePost, paginationSchema, parseId } from "./posts";
 import { HttpError } from "../utils/errors";
 import {
@@ -25,13 +29,14 @@ import {
 const router: IRouter = Router();
 const shareInputSchema = z.object({
   platform: z.enum(sharePlatforms),
+  autoPost: z.boolean().optional(),
 });
 const previewPlatformSchema = z.enum(sharePlatforms);
 const adminShareAnalyticsQuerySchema = z.object({
   chapter: optionalChapterSchema,
 });
 
-function getPostLink(request: Request, postId: string): string {
+export function getPostLink(request: Request, postId: string): string {
   const configuredBaseUrl = process.env.APP_BASE_URL?.trim();
   if (configuredBaseUrl) {
     try {
@@ -126,7 +131,8 @@ router.post(
   async (request, response, next) => {
     try {
       const postId = parseId(request.params.id, "post");
-      const { platform } = shareInputSchema.parse(request.body);
+      const { platform, autoPost: requestedAutoPost } =
+        shareInputSchema.parse(request.body);
       const post = await findVisiblePost(postId, request.user!.chapter);
 
       if (!post) {
@@ -144,9 +150,50 @@ router.post(
         .from(sharesTable)
         .where(eq(sharesTable.postId, postId));
 
+      const [sharingMember] = await db
+        .select({
+          autoPostShares: membersTable.autoPostShares,
+          preferredPostPlatforms: membersTable.preferredPostPlatforms,
+        })
+        .from(membersTable)
+        .where(eq(membersTable.id, request.user!.id))
+        .limit(1);
+      const shouldAutoPost =
+        requestedAutoPost ?? sharingMember?.autoPostShares ?? false;
+      let autoPosted: AutoPostResults = {};
+
+      if (shouldAutoPost && sharingMember?.preferredPostPlatforms.length) {
+        try {
+          autoPosted = await autoPostToConnectedAccounts(
+            request.user!.id,
+            sharingMember.preferredPostPlatforms,
+            {
+              id: post.id,
+              caption: post.caption,
+              imageUrl: post.imageUrl,
+              authorName: post.author.name,
+              chapterName: post.author.chapter,
+              postLink: getPostLink(request, post.id),
+            },
+          );
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : "Social accounts could not be reached.";
+          autoPosted = Object.fromEntries(
+            sharingMember.preferredPostPlatforms.map((socialPlatform) => [
+              socialPlatform,
+              { status: "error" as const, error: message },
+            ]),
+          );
+        }
+      }
+
       response.status(201).json({
         shareCount: Number(result?.shareCount ?? 0),
         message: "Shared successfully",
+        autoPosted,
       });
     } catch (error) {
       next(error);
