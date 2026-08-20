@@ -3,7 +3,7 @@ name: Facebook MVP permissions
 description: MVP boundary for Facebook account connections
 ---
 
-Facebook uses only `email` and `public_profile` for this MVP. It connects a member identity but is not an auto-post destination.
+Facebook uses only `public_profile` for this MVP. It connects a member identity but is not an auto-post destination; email collection is deferred to Phase 2.
 
 **Why:** The product explicitly excludes Facebook Page management for the MVP. Meta does not support personal-profile publishing through this integration, so Page permissions would be required for Facebook auto-posting.
 

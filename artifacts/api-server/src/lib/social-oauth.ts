@@ -69,7 +69,7 @@ export function getSocialProvider(
         ),
         authorizationUrl: "https://www.facebook.com/v20.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v20.0/oauth/access_token",
-        scopes: ["email", "public_profile"],
+        scopes: ["public_profile"],
       };
     case "linkedin":
       return {
