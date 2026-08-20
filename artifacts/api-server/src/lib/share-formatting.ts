@@ -72,6 +72,10 @@ export function formatShareText(
   chapterName: string,
   postLink: string,
 ): string {
+  if (platform === "LinkedIn") {
+    return post.caption.trim();
+  }
+
   const shareLines = {
     LinkedIn: [
       `Shared from ${authorName} via Aegis Rise 🚀`,
