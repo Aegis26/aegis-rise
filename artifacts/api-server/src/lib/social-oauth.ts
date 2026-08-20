@@ -124,8 +124,15 @@ function allowedDevelopmentHosts(): Set<string> {
 }
 
 export function getPublicApplicationBaseUrl(request: Request): string {
-  const configured = configuredValue("APP_BASE_URL");
-  if (configured) {
+  if (process.env.NODE_ENV === "production") {
+    const configured = configuredValue("APP_BASE_URL");
+    if (!configured) {
+      throw new HttpError(
+        503,
+        "APP_BASE_URL must be configured before social connections can be used.",
+      );
+    }
+
     try {
       const url = new URL(configured);
       if (!["http:", "https:"].includes(url.protocol)) {
@@ -135,13 +142,6 @@ export function getPublicApplicationBaseUrl(request: Request): string {
     } catch {
       throw new HttpError(500, "APP_BASE_URL must be a valid HTTP or HTTPS URL.");
     }
-  }
-
-  if (process.env.NODE_ENV === "production") {
-    throw new HttpError(
-      503,
-      "APP_BASE_URL must be configured before social connections can be used.",
-    );
   }
 
   const host = request.get("host");
