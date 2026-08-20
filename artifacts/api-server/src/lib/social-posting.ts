@@ -44,9 +44,12 @@ interface ProviderResponse {
 }
 
 function asSharePlatform(platform: SupportedSocialPlatform) {
-  return (
-    platform.charAt(0).toUpperCase() + platform.slice(1)
-  ) as "Facebook" | "LinkedIn" | "Instagram";
+  const sharePlatformBySocialPlatform = {
+    facebook: "Facebook",
+    linkedin: "LinkedIn",
+    instagram: "Instagram",
+  } as const;
+  return sharePlatformBySocialPlatform[platform];
 }
 
 function providerErrorMessage(body: ProviderResponse): string | undefined {
