@@ -56,6 +56,23 @@ const SOCIAL_PLATFORMS: Array<{ value: SocialPlatform; label: string }> = [
   { value: "instagram", label: "Instagram" },
 ];
 
+function getAuthorizationUrl(result: unknown): string | undefined {
+  if (!result || typeof result !== "object") {
+    return undefined;
+  }
+
+  const response = result as {
+    authorizationUrl?: unknown;
+    data?: { authorizationUrl?: unknown };
+  };
+  const authorizationUrl =
+    response.authorizationUrl ?? response.data?.authorizationUrl;
+
+  return typeof authorizationUrl === "string" && authorizationUrl.length > 0
+    ? authorizationUrl
+    : undefined;
+}
+
 const COLOR_PRESETS = [
   { name: "Electric Blue", value: "#00aaff" },
   { name: "Neon Purple", value: "#b026ff" },
@@ -68,6 +85,8 @@ export default function Profile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSaved, setIsSaved] = useState(false);
+  const [connectingPlatform, setConnectingPlatform] =
+    useState<SocialPlatform | null>(null);
   const profileImageInput = useRef<HTMLInputElement>(null);
 
   const { data: memberData, isLoading } = useGetCurrentMember({
@@ -137,9 +156,39 @@ export default function Profile() {
   const connectSocialMutation = useCreateSocialConnection({
     mutation: {
       onSuccess: (result) => {
-        window.location.assign(result.authorizationUrl);
+        const authorizationUrl = getAuthorizationUrl(result);
+        if (!authorizationUrl) {
+          setConnectingPlatform(null);
+          toast({
+            title: "Could not start connection",
+            description:
+              "The server did not return an authorization link. Please try again.",
+            variant: "destructive",
+          });
+          return;
+        }
+
+        try {
+          const destination = new URL(authorizationUrl, window.location.origin);
+          if (
+            destination.protocol !== "https:" &&
+            destination.protocol !== "http:"
+          ) {
+            throw new Error("Unsupported authorization URL protocol.");
+          }
+          window.location.assign(destination.toString());
+        } catch {
+          setConnectingPlatform(null);
+          toast({
+            title: "Could not start connection",
+            description:
+              "The authorization link was invalid. Please try again.",
+            variant: "destructive",
+          });
+        }
       },
       onError: (error: Error) => {
+        setConnectingPlatform(null);
         toast({
           title: "Could not start connection",
           description: error.message,
@@ -179,6 +228,10 @@ export default function Profile() {
 
   const onSubmit = (data: ProfileFormValues) => {
     updateMutation.mutate({ data });
+  };
+  const startSocialConnection = (platform: SocialPlatform) => {
+    setConnectingPlatform(platform);
+    connectSocialMutation.mutate({ platform });
   };
 
   useEffect(() => {
@@ -433,7 +486,7 @@ export default function Profile() {
                           (item) => item.platform === platform.value,
                         );
                         const isBusy =
-                          connectSocialMutation.isPending ||
+                          connectingPlatform === platform.value ||
                           disconnectSocialMutation.isPending;
                         return (
                           <div
@@ -474,11 +527,7 @@ export default function Profile() {
                                 variant="outline"
                                 size="sm"
                                 disabled={isBusy}
-                                onClick={() =>
-                                  connectSocialMutation.mutate({
-                                    platform: platform.value,
-                                  })
-                                }
+                                onClick={() => startSocialConnection(platform.value)}
                               >
                                 <Link2 className="mr-2 h-4 w-4" />
                                 Connect
