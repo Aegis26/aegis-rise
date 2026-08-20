@@ -205,7 +205,10 @@ export default function Feed() {
   );
   const selectedAutoPlatforms = (
     currentMemberData?.member.preferredPostPlatforms ?? []
-  ).filter((platform) => activeConnectedPlatforms.has(platform));
+  ).filter(
+    (platform) =>
+      platform !== "facebook" && activeConnectedPlatforms.has(platform),
+  );
 
   return (
     <div className="max-w-3xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-8">

@@ -161,12 +161,16 @@ router.post(
       const shouldAutoPost =
         requestedAutoPost ?? sharingMember?.autoPostShares ?? false;
       let autoPosted: AutoPostResults = {};
+      const publishablePlatforms =
+        sharingMember?.preferredPostPlatforms.filter(
+          (platform) => platform !== "facebook",
+        ) ?? [];
 
-      if (shouldAutoPost && sharingMember?.preferredPostPlatforms.length) {
+      if (shouldAutoPost && publishablePlatforms.length) {
         try {
           autoPosted = await autoPostToConnectedAccounts(
             request.user!.id,
-            sharingMember.preferredPostPlatforms,
+            publishablePlatforms,
             {
               id: post.id,
               caption: post.caption,
@@ -182,7 +186,7 @@ router.post(
               ? error.message
               : "Social accounts could not be reached.";
           autoPosted = Object.fromEntries(
-            sharingMember.preferredPostPlatforms.map((socialPlatform) => [
+            publishablePlatforms.map((socialPlatform) => [
               socialPlatform,
               { status: "error" as const, error: message },
             ]),

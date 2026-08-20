@@ -50,10 +50,14 @@ const profileSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileSchema>;
 type SocialPlatform = ProfileFormValues["preferredPostPlatforms"][number];
 
-const SOCIAL_PLATFORMS: Array<{ value: SocialPlatform; label: string }> = [
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "facebook", label: "Facebook" },
-  { value: "instagram", label: "Instagram" },
+const SOCIAL_PLATFORMS: Array<{
+  value: SocialPlatform;
+  label: string;
+  canAutoPost: boolean;
+}> = [
+  { value: "linkedin", label: "LinkedIn", canAutoPost: true },
+  { value: "facebook", label: "Facebook", canAutoPost: false },
+  { value: "instagram", label: "Instagram", canAutoPost: true },
 ];
 
 function getAuthorizationUrl(result: unknown): string | undefined {
@@ -128,7 +132,9 @@ export default function Profile() {
         themePreference: memberData.member.themePreference as any || "dark",
         primaryColor: memberData.member.primaryColor || "#00aaff",
         autoPostShares: memberData.member.autoPostShares,
-        preferredPostPlatforms: memberData.member.preferredPostPlatforms,
+        preferredPostPlatforms: memberData.member.preferredPostPlatforms.filter(
+          (platform) => platform !== "facebook",
+        ),
       });
     }
   }, [memberData, form]);
@@ -403,7 +409,7 @@ export default function Profile() {
                       <div>
                         <h3 className="font-semibold">Social sharing</h3>
                         <p className="text-sm text-muted-foreground">
-                          Choose where selected future shares can be published.
+                          Connect your accounts, then choose where future shares can be published.
                         </p>
                       </div>
                     </div>
@@ -442,7 +448,9 @@ export default function Profile() {
                         <FormItem>
                           <FormLabel>Selected platforms</FormLabel>
                           <div className="grid gap-2 sm:grid-cols-3">
-                            {SOCIAL_PLATFORMS.map((platform) => {
+                            {SOCIAL_PLATFORMS.filter(
+                              (platform) => platform.canAutoPost,
+                            ).map((platform) => {
                               const connected = activePlatforms.has(platform.value);
                               const checked = field.value?.includes(platform.value);
                               return (
@@ -474,7 +482,7 @@ export default function Profile() {
                             })}
                           </div>
                           <FormDescription>
-                            Connect an active account below before selecting it.
+                            Connect LinkedIn or Instagram before selecting it. Facebook is available for account authentication only.
                           </FormDescription>
                         </FormItem>
                       )}
@@ -504,6 +512,11 @@ export default function Profile() {
                                 </Badge>
                               ) : (
                                 <span className="text-xs text-muted-foreground">Not connected</span>
+                              )}
+                              {platform.value === "facebook" && (
+                                <span className="text-xs text-muted-foreground">
+                                  Authentication only
+                                </span>
                               )}
                             </div>
                             {account ? (

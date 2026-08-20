@@ -5,3 +5,4 @@
 - [Chapter rename isolation](chapter-rename-isolation.md) — serialize every chapter-scoped write with rename; reserve old names so mutable labels cannot cross tenant boundaries.
 - [OAuth preview hosts](social-oauth-preview-hosts.md) — development previews use dynamic Replit hosts; reserve APP_BASE_URL for production callback construction.
 - [LinkedIn OAuth scopes](linkedin-oauth-scopes.md) — standard LinkedIn apps use OIDC plus member sharing scopes; do not request offline_access without partner approval.
+- [Facebook MVP permissions](facebook-mvp-permissions.md) — Facebook is a basic connected account only; do not request Page scopes or permit auto-posting.

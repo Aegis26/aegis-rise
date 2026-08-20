@@ -69,11 +69,7 @@ export function getSocialProvider(
         ),
         authorizationUrl: "https://www.facebook.com/v20.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v20.0/oauth/access_token",
-        scopes: [
-          "pages_show_list",
-          "pages_read_engagement",
-          "pages_manage_posts",
-        ],
+        scopes: ["email", "public_profile"],
       };
     case "linkedin":
       return {
@@ -262,6 +258,10 @@ interface MetaPagesResponse {
   data?: MetaPage[];
 }
 
+interface MetaUser {
+  id?: string;
+}
+
 interface LinkedInTokenResponse {
   access_token?: string;
   refresh_token?: string;
@@ -332,6 +332,26 @@ async function resolveMetaAccount(
   expiresAt: Date | undefined,
   existingExternalUserId?: string,
 ): Promise<SocialTokenResult> {
+  if (provider.platform === "facebook") {
+    const userUrl = new URL("https://graph.facebook.com/v20.0/me");
+    userUrl.searchParams.set("fields", "id");
+    userUrl.searchParams.set("access_token", memberAccessToken);
+    const user = await fetchJson<MetaUser>(
+      userUrl.toString(),
+      { method: "GET" },
+      provider.label,
+    );
+    if (!user.id) {
+      throw new HttpError(409, "Facebook did not return a member identity.");
+    }
+    return {
+      accessToken: memberAccessToken,
+      refreshToken: memberAccessToken,
+      externalUserId: existingExternalUserId ?? user.id,
+      expiresAt,
+    };
+  }
+
   const pagesUrl = new URL("https://graph.facebook.com/v20.0/me/accounts");
   pagesUrl.searchParams.set(
     "fields",

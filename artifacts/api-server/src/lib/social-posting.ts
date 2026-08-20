@@ -151,6 +151,14 @@ export async function postToSocial(
 ): Promise<SocialPostOutcome> {
   const platform = account.platform as SupportedSocialPlatform;
   try {
+    if (platform === "facebook") {
+      return {
+        status: "error",
+        error:
+          "Facebook is connected for account authentication only and cannot auto-post in this MVP.",
+      };
+    }
+
     const accessToken = await getUsableAccessToken(account);
     const caption = formatShareText(
       { id: post.id, caption: post.caption },
@@ -159,29 +167,6 @@ export async function postToSocial(
       post.chapterName,
       post.postLink,
     );
-
-    if (platform === "facebook") {
-      const body = new URLSearchParams({
-        message: caption,
-        link: post.postLink,
-        access_token: accessToken,
-      });
-      const { body: response } = await providerFetch(
-        `https://graph.facebook.com/v20.0/${encodeURIComponent(account.externalUserId)}/feed`,
-        {
-          method: "POST",
-          headers: { "content-type": "application/x-www-form-urlencoded" },
-          body,
-        },
-        "Facebook",
-      );
-      return {
-        status: "success",
-        externalUrl: response.id
-          ? `https://www.facebook.com/${response.id}`
-          : undefined,
-      };
-    }
 
     if (platform === "instagram") {
       if (!post.imageUrl) {
