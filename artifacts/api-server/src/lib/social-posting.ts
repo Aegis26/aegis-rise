@@ -245,7 +245,7 @@ export async function postToSocial(
       post.postLink,
     );
     const linkedInVersion =
-      process.env.LINKEDIN_API_VERSION?.trim() || "202501";
+      process.env.LINKEDIN_API_VERSION?.trim() || "202608";
     const linkedInPayload = {
       author: `urn:li:person:${account.externalUserId}`,
       commentary: caption,
