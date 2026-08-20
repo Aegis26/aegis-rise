@@ -1,0 +1,101 @@
+Add OAuth social media integration to Aegis Rise so members can connect their Facebook, LinkedIn, and Instagram accounts and auto-post shares directly to their social profiles.
+
+CONTEXT:
+Currently, shares are tracked for internal analytics but don't actually post to members' social accounts. We want to give members the option to authenticate and auto-post.
+
+PHASE 1 GOAL: Members can connect social accounts (Facebook, LinkedIn, Instagram) and optionally auto-post shares to those platforms.
+
+REQUIREMENTS:
+
+1. Add OAuth endpoints:
+
+GET /api/auth/social/connect/:platform
+- Redirects to platform's OAuth login (Facebook, LinkedIn, Instagram)
+- Platforms: 'facebook', 'linkedin', 'instagram'
+- After auth, stores access_token in new SocialAccount table
+- Redirects back to frontend with success
+
+GET /api/auth/social/disconnect/:platform
+- Removes the connected account/token
+- Returns success
+
+GET /api/auth/social/accounts
+- Returns list of connected accounts for current member
+- Shows: platform, connectedAt, expiresAt (if applicable)
+- Auth required
+
+2. Database schema additions:
+
+SocialAccount table:
+- id (UUID primary key)
+- memberId (UUID, foreign key to Members)
+- platform (enum: 'facebook' | 'linkedin' | 'instagram')
+- accessToken (encrypted, never returned in API)
+- refreshToken (encrypted, optional)
+- externalUserId (string, the user's ID on that platform)
+- connectedAt (timestamp)
+- expiresAt (timestamp, optional)
+- isActive (boolean, can disable without deleting)
+
+Update Members table:
+- autoPostShares (boolean, default false)
+- preferredPostPlatforms (array of platforms, default [])
+
+3. Update share endpoint:
+
+POST /api/posts/:id/share
+- Add optional param: autoPost (boolean)
+- If autoPost=true AND member has connected accounts, attempt to post to those accounts
+- If post fails on social platform, still track share internally (graceful degradation)
+- Return: { shareCount, autoPosted: { facebook: success|error, linkedin: success|error, instagram: success|error } }
+
+4. Create social posting helper:
+
+Function postToSocial(platform, post, member):
+- Takes platform name, post data, member's social account
+- Formats caption for that platform
+- Posts using platform's API
+- Returns: { success: boolean, externalUrl: string, error: string }
+
+PLATFORMS:
+- Facebook: Use Facebook Graph API (v18+)
+- LinkedIn: Use LinkedIn Share API
+- Instagram: Use Instagram Graph API (requires business account)
+
+5. Handle token refresh:
+
+- Some tokens expire; implement refresh logic
+- If token refresh fails, mark account inactive
+- Send member notification (email deferred for now)
+
+6. Error handling:
+
+- 400: Invalid platform
+- 401: Unauthorized
+- 403: Account not connected
+- 409: Platform API error (still track share, return error details)
+
+7. Frontend changes:
+
+- Add "Connect Social Accounts" section to Profile page
+- Show connected accounts with "Disconnect" buttons
+- Add toggle: "Auto-post to social when sharing"
+- Add checkboxes to select which platforms to auto-post to
+- When sharing, show which platforms will receive the post
+
+8. Test endpoints:
+
+- Connect Facebook/LinkedIn/Instagram accounts
+- Verify tokens stored securely
+- Share a post and verify it appears on connected social account
+- Test token refresh
+- Test disconnect
+
+DELIVERABLES:
+- OAuth integration for 3 platforms
+- Members can connect/disconnect accounts
+- Shares auto-post to connected platforms
+- Graceful error handling if platforms fail
+- All endpoints tested
+
+When complete, members can authenticate with social platforms and shares will auto-post to their accounts.
