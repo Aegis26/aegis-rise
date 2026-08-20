@@ -73,20 +73,20 @@ export default function Login() {
       </div>
 
       <main className="relative z-10 flex min-h-[100dvh] items-center justify-center px-6 py-12 sm:px-10">
-        <div className="flex w-full max-w-[620px] flex-col items-center justify-center gap-12 md:flex-row md:items-center md:gap-16 lg:gap-20">
-          <section className="w-full max-w-[245px] shrink-0 text-center md:text-left">
-            <img src={aegisLogo} alt="Aegis Rise" className="mx-auto mb-6 h-[108px] w-[108px] object-contain md:mx-0" />
-            <h1 className="text-[30px] font-bold leading-[1.12] tracking-[-0.04em]">
+        <div className="flex w-full max-w-[780px] flex-col items-center justify-center gap-12 md:flex-row md:items-center md:gap-20 lg:gap-28">
+          <section className="w-full max-w-[350px] shrink-0 text-center md:text-left">
+            <img src={aegisLogo} alt="Aegis Rise" className="mx-auto mb-8 h-[190px] w-[190px] object-contain md:mx-0" />
+            <h1 className="text-[42px] font-bold leading-[1.08] tracking-[-0.045em]">
               Connect. Collaborate. <span className="text-[#00bfd3]">Grow.</span>
             </h1>
-            <p className="mt-4 text-[13px] leading-relaxed text-[#aeb8b8]">
+            <p className="mt-5 text-[17px] leading-relaxed text-[#aeb8b8]">
               The exclusive professional network for active chapter members.
             </p>
-            <p className="mt-1 text-[13px] text-[#7f8b8b]">
+            <p className="mt-2 text-[16px] text-[#7f8b8b]">
               Connection. Collaboration. Growth.
             </p>
-            <div className="mt-7 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#101918]/80 px-3 py-1.5 text-[10px] text-[#9eaaa5]">
-              <ShieldCheck className="h-3 w-3 text-[#4fd47c]" />
+            <div className="mt-9 inline-flex items-center gap-2 rounded-full border border-white/10 bg-[#101918]/80 px-4 py-2 text-[13px] text-[#9eaaa5]">
+              <ShieldCheck className="h-4 w-4 text-[#4fd47c]" />
               Institutional-grade security &amp; precision
             </div>
           </section>
