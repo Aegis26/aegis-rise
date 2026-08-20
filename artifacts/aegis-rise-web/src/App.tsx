@@ -15,6 +15,7 @@ import { AppShell } from '@/components/layout/app-shell';
 import NotFound from '@/pages/not-found';
 import Login from '@/pages/login';
 import Signup from '@/pages/signup';
+import Privacy from '@/pages/privacy';
 import Feed from '@/pages/feed';
 import Profile from '@/pages/profile';
 import PublicProfile from '@/pages/public-profile';
@@ -58,6 +59,7 @@ function Router() {
       <Switch>
         <Route path="/login" component={Login} />
         <Route path="/signup" component={Signup} />
+        <Route path="/privacy" component={Privacy} />
         
         {/* Protected Routes inside AppShell */}
         <Route path="/feed">
