@@ -1,0 +1,50 @@
+Redesign the Aegis Rise LoginPage component to match the Aegis Credo login design.
+
+CURRENT STATE:
+The LoginPage has a two-column split layout but needs visual refinement to match Credo's polish.
+
+DESIRED STATE:
+Match the Aegis Credo login page design (provided as reference). The login page should have:
+
+LAYOUT:
+- Full-screen two-column split
+- Left column (40%): Branding and messaging
+- Right column (60%): Login form
+
+LEFT COLUMN:
+- Top left: Aegis Rise logo (small, 60px) + "AEGIS RISE" text
+- Below logo: Major spacing
+- Headline: "Connect. Collaborate. Grow." (large, 48px, bold, white)
+- Subheading: "The exclusive professional network for active chapter members. Discover fellow members, share useful work, and steward a trusted community." (18px, gray text, max 400px width)
+- Bottom: Optional tagline/feature (e.g., "Institutional-grade security & precision")
+- Background: Dark navy (#001f3f or #0a1428)
+
+RIGHT COLUMN:
+- Card/section with dark gray background (#2a2a2a)
+- Padding: 48px
+- Heading: "Welcome Back" (32px, white, bold)
+- Subtext: "Sign in to your member account." (16px, gray)
+- Email input field (placeholder: "you@example.com")
+- Password input field (placeholder hidden, dots)
+- "Sign In" button (electric blue #007BFF, full width, 48px height, rounded)
+- Bottom: "Not a member yet? Apply for Chapter Access" (link in cyan #00BFD3)
+- Background: Dark navy (#001f3f)
+
+STYLING:
+- Font family: Inter, system fonts
+- Colors: Dark navy (#001f3f), dark gray (#2a2a2a), electric blue (#007BFF), cyan (#00BFD3), white text
+- All form inputs: Dark background (#333333), white text, electric blue focus state
+- Smooth transitions on hover/focus
+- Mobile responsive: Stack columns vertically on screens <768px
+
+REMOVE:
+- Any placeholder login credentials or extra text
+- Unnecessary spacing or visual clutter
+
+TEST:
+- Verify login still works
+- Test form validation
+- Check mobile responsiveness
+- Ensure colors match Aegis Rise brand guidelines
+
+When complete, confirm the login page matches Aegis Credo's design while maintaining Aegis Rise functionality and branding.
