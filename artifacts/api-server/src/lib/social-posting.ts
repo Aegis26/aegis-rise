@@ -43,6 +43,23 @@ interface ProviderResponse {
   [key: string]: unknown;
 }
 
+interface LinkedInImageUpload {
+  imageUrn: string;
+  uploadUrl: string;
+}
+
+interface DownloadedImage {
+  bytes: Buffer;
+  contentType: "image/gif" | "image/jpeg" | "image/png";
+}
+
+const linkedInImageContentTypes = new Set([
+  "image/gif",
+  "image/jpeg",
+  "image/png",
+]);
+const maxLinkedInImageBytes = 10 * 1024 * 1024;
+
 function asSharePlatform(platform: SupportedSocialPlatform) {
   const sharePlatformBySocialPlatform = {
     facebook: "Facebook",
@@ -82,6 +99,179 @@ function linkedInResponseHeaders(response: Response) {
       .map((header) => [header, response.headers.get(header)] as const)
       .filter(([, value]) => value !== null),
   );
+}
+
+function requireObject(value: unknown, message: string): Record<string, unknown> {
+  if (!value || typeof value !== "object") {
+    throw new Error(message);
+  }
+  return value as Record<string, unknown>;
+}
+
+function imageUploadFromResponse(body: ProviderResponse): LinkedInImageUpload {
+  const value = requireObject(
+    body.value,
+    "LinkedIn did not return an image upload destination.",
+  );
+  const imageUrn = value.image;
+  const uploadUrl = value.uploadUrl;
+  if (
+    typeof imageUrn !== "string" ||
+    !imageUrn.startsWith("urn:li:image:") ||
+    typeof uploadUrl !== "string"
+  ) {
+    throw new Error("LinkedIn did not return a valid image upload destination.");
+  }
+  return { imageUrn, uploadUrl };
+}
+
+function assertManagedImageUrl(imageUrl: string): URL {
+  const publicImageBaseUrl = process.env.R2_PUBLIC_URL?.trim();
+  if (!publicImageBaseUrl) {
+    throw new Error("Attached images are not available for LinkedIn publishing.");
+  }
+
+  const baseUrl = new URL(publicImageBaseUrl);
+  const sourceUrl = new URL(imageUrl);
+  const basePath = baseUrl.pathname.endsWith("/")
+    ? baseUrl.pathname
+    : `${baseUrl.pathname}/`;
+  if (
+    sourceUrl.protocol !== "https:" ||
+    sourceUrl.origin !== baseUrl.origin ||
+    !sourceUrl.pathname.startsWith(basePath)
+  ) {
+    throw new Error(
+      "Only images uploaded to Aegis Rise can be included in LinkedIn posts.",
+    );
+  }
+  return sourceUrl;
+}
+
+async function downloadLinkedInImage(imageUrl: string): Promise<DownloadedImage> {
+  const sourceUrl = assertManagedImageUrl(imageUrl);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const response = await fetch(sourceUrl, {
+      method: "GET",
+      redirect: "error",
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error("The attached image could not be downloaded for LinkedIn.");
+    }
+
+    const contentType = response.headers
+      .get("content-type")
+      ?.split(";")[0]
+      ?.trim()
+      .toLowerCase();
+    if (!contentType || !linkedInImageContentTypes.has(contentType)) {
+      throw new Error(
+        "LinkedIn supports attached JPG, PNG, and GIF images only.",
+      );
+    }
+
+    const declaredSize = Number(response.headers.get("content-length"));
+    if (
+      Number.isFinite(declaredSize) &&
+      declaredSize > maxLinkedInImageBytes
+    ) {
+      throw new Error("The attached image is too large for LinkedIn publishing.");
+    }
+
+    const bytes = Buffer.from(await response.arrayBuffer());
+    if (bytes.byteLength === 0 || bytes.byteLength > maxLinkedInImageBytes) {
+      throw new Error("The attached image is too large for LinkedIn publishing.");
+    }
+    return {
+      bytes,
+      contentType: contentType as DownloadedImage["contentType"],
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function uploadImageToLinkedIn(
+  accessToken: string,
+  owner: string,
+  imageUrl: string,
+  linkedInVersion: string,
+  postId: string,
+): Promise<string> {
+  const { body } = await providerFetch(
+    "https://api.linkedin.com/rest/images?action=initializeUpload",
+    {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": "application/json",
+        "Linkedin-Version": linkedInVersion,
+        "X-Restli-Protocol-Version": "2.0.0",
+      },
+      body: JSON.stringify({
+        initializeUploadRequest: { owner },
+      }),
+    },
+    "LinkedIn",
+  );
+  const { imageUrn, uploadUrl } = imageUploadFromResponse(body);
+  const image = await downloadLinkedInImage(imageUrl);
+
+  logger.info(
+    {
+      postId,
+      imageUrn,
+      contentType: image.contentType,
+      bytes: image.bytes.byteLength,
+    },
+    "LinkedIn image binary upload starting",
+  );
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 30_000);
+  try {
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+        "content-type": image.contentType,
+      },
+      body: image.bytes,
+      signal: controller.signal,
+    });
+    const responseBody = parseProviderResponse(await response.text());
+    logger.info(
+      {
+        provider: "LinkedIn",
+        request: {
+          method: "PUT",
+          url: "[REDACTED signed upload URL]",
+          contentType: image.contentType,
+          bytes: image.bytes.byteLength,
+        },
+        response: {
+          status: response.status,
+          statusText: response.statusText,
+          body: responseBody,
+        },
+      },
+      "LinkedIn image binary upload completed",
+    );
+    if (!response.ok) {
+      const detail = providerErrorMessage(responseBody);
+      throw new Error(
+        detail
+          ? `LinkedIn rejected the image upload: ${detail}`
+          : "LinkedIn rejected the image upload.",
+      );
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+
+  return imageUrn;
 }
 
 async function providerFetch(
@@ -246,8 +436,18 @@ export async function postToSocial(
     );
     const linkedInVersion =
       process.env.LINKEDIN_API_VERSION?.trim() || "202608";
+    const author = `urn:li:person:${account.externalUserId}`;
+    const imageUrn = post.imageUrl
+      ? await uploadImageToLinkedIn(
+          accessToken,
+          author,
+          post.imageUrl,
+          linkedInVersion,
+          post.id,
+        )
+      : undefined;
     const linkedInPayload = {
-      author: `urn:li:person:${account.externalUserId}`,
+      author,
       commentary: caption,
       visibility: "PUBLIC",
       distribution: {
@@ -255,6 +455,15 @@ export async function postToSocial(
         targetEntities: [],
         thirdPartyDistributionChannels: [],
       },
+      ...(imageUrn
+        ? {
+            content: {
+              media: {
+                id: imageUrn,
+              },
+            },
+          }
+        : {}),
       lifecycleState: "PUBLISHED",
       isReshareDisabledByAuthor: false,
     };
