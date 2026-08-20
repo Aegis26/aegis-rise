@@ -22,6 +22,7 @@ import {
   encryptSocialToken,
   isValidSignedSocialState,
 } from "../lib/social-token-crypto";
+import { logger } from "../lib/logger";
 import { requireAuth } from "../middleware/auth";
 import { HttpError } from "../utils/errors";
 
@@ -185,6 +186,17 @@ router.get(
       }
 
       if (typeof request.query.error === "string") {
+        logger.warn(
+          {
+            platform,
+            providerError: request.query.error.slice(0, 120),
+            providerErrorDescription:
+              typeof request.query.error_description === "string"
+                ? request.query.error_description.slice(0, 500)
+                : undefined,
+          },
+          "Social OAuth provider declined authorization",
+        );
         await db
           .update(socialOAuthStatesTable)
           .set({ consumedAt: new Date() })
