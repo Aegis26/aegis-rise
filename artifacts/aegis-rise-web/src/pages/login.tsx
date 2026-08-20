@@ -91,31 +91,31 @@ export default function Login() {
             </div>
           </section>
 
-          <section className="w-full max-w-[270px] rounded-lg border border-white/[0.08] bg-[#191a1f] p-4 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
-            <div className="mb-4">
-              <h2 className="text-[16px] font-semibold tracking-tight text-[#f3f4f4]">Secure Login</h2>
-              <p className="mt-1 text-[10px] text-[#8e949c]">Authenticate to access your chapter workspace.</p>
+          <section className="w-full max-w-[360px] rounded-xl border border-white/[0.08] bg-[#191a1f] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.35)]">
+            <div className="mb-6">
+              <h2 className="text-[20px] font-semibold tracking-tight text-[#f3f4f4]">Secure Login</h2>
+              <p className="mt-1.5 text-[12px] text-[#8e949c]">Authenticate to access your chapter workspace.</p>
             </div>
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
                 <FormField
                   control={form.control}
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-medium text-[#d7d9dc]">Email</FormLabel>
+                        <FormLabel className="text-[12px] font-medium text-[#d7d9dc]">Email</FormLabel>
                       <FormControl>
                         <Input
                           placeholder="name@example.com"
                           type="email"
                           autoComplete="email"
-                          className="mt-1 h-8 rounded-sm border-white/[0.06] bg-[#242731] px-2 text-[10px] text-white placeholder:text-[#737984] focus-visible:border-[#007bff] focus-visible:ring-1 focus-visible:ring-[#007bff]/40"
+                          className="mt-1.5 h-10 rounded-md border-white/[0.06] bg-[#242731] px-3 text-[13px] text-white placeholder:text-[#737984] focus-visible:border-[#007bff] focus-visible:ring-1 focus-visible:ring-[#007bff]/40"
                           data-testid="input-email"
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage className="text-[10px]" />
+                      <FormMessage className="text-[11px]" />
                     </FormItem>
                   )}
                 />
@@ -124,43 +124,43 @@ export default function Login() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-[10px] font-medium text-[#d7d9dc]">Password</FormLabel>
+                        <FormLabel className="text-[12px] font-medium text-[#d7d9dc]">Password</FormLabel>
                       <FormControl>
                         <Input
                           type="password"
                           autoComplete="current-password"
-                          className="mt-1 h-8 rounded-sm border-white/[0.06] bg-[#242731] px-2 text-[10px] text-white focus-visible:border-[#007bff] focus-visible:ring-1 focus-visible:ring-[#007bff]/40"
+                          className="mt-1.5 h-10 rounded-md border-white/[0.06] bg-[#242731] px-3 text-[13px] text-white focus-visible:border-[#007bff] focus-visible:ring-1 focus-visible:ring-[#007bff]/40"
                           data-testid="input-password"
                           {...field}
                         />
                       </FormControl>
-                      <FormMessage className="text-[10px]" />
+                      <FormMessage className="text-[11px]" />
                     </FormItem>
                   )}
                 />
                 <Button
                   type="submit"
-                  className="h-8 w-full rounded-sm bg-[#168cf0] text-[10px] font-medium text-white shadow-[0_0_12px_rgba(22,140,240,0.2)] transition-colors hover:bg-[#0879d8]"
+                  className="h-10 w-full rounded-md bg-[#168cf0] text-[13px] font-medium text-white shadow-[0_0_12px_rgba(22,140,240,0.2)] transition-colors hover:bg-[#0879d8]"
                   disabled={loginMutation.isPending}
                   data-testid="button-login-submit"
                 >
                   {loginMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Authenticating...
                     </>
                   ) : (
                     <>
                       Authenticate
-                      <ArrowRight className="ml-1.5 h-3 w-3" />
+                      <ArrowRight className="ml-2 h-4 w-4" />
                     </>
                   )}
                 </Button>
               </form>
             </Form>
 
-            <div className="mt-4 border-t border-white/[0.07] pt-3 text-center">
-              <p className="text-[10px] leading-relaxed text-[#8e949c]">
+            <div className="mt-6 border-t border-white/[0.07] pt-4 text-center">
+              <p className="text-[12px] leading-relaxed text-[#8e949c]">
                 Access is invite-only.{" "}
                 <Link href="/signup" className="text-[#00bfd3] transition-colors hover:text-white hover:underline" data-testid="link-signup">
                   Apply for Chapter Access
