@@ -73,9 +73,9 @@ export default function Login() {
       </div>
 
       <main className="relative z-10 flex min-h-[100dvh] items-center justify-center px-6 py-12 sm:px-10">
-        <div className="flex w-full max-w-[780px] flex-col items-center justify-center gap-12 md:flex-row md:items-center md:gap-20 lg:gap-28">
-          <section className="w-full max-w-[350px] shrink-0 text-center md:text-left">
-            <img src={aegisLogo} alt="Aegis Rise" className="mx-auto mb-8 h-[190px] w-[190px] object-contain md:mx-0" />
+        <div className="flex w-full max-w-[920px] flex-col items-center justify-center gap-12 md:flex-row md:items-center md:gap-20 lg:gap-28">
+          <section className="w-full max-w-[400px] shrink-0 text-center md:text-left">
+            <img src={aegisLogo} alt="Aegis Rise" className="mx-auto mb-8 block h-auto w-full max-w-[380px] object-contain md:mx-0" />
             <h1 className="text-[42px] font-bold leading-[1.08] tracking-[-0.045em]">
               Connect. Collaborate. <span className="text-[#00bfd3]">Grow.</span>
             </h1>
