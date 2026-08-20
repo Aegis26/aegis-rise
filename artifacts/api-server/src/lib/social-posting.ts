@@ -17,6 +17,7 @@ import {
   encryptSocialToken,
 } from "./social-token-crypto";
 import { HttpError } from "../utils/errors";
+import { logger } from "./logger";
 
 export interface SocialPostInput {
   id: string;
@@ -39,12 +40,45 @@ export type AutoPostResults = Partial<
 
 interface ProviderResponse {
   id?: string;
+  [key: string]: unknown;
 }
 
 function asSharePlatform(platform: SupportedSocialPlatform) {
   return (
     platform.charAt(0).toUpperCase() + platform.slice(1)
   ) as "Facebook" | "LinkedIn" | "Instagram";
+}
+
+function providerErrorMessage(body: ProviderResponse): string | undefined {
+  const nestedError = body.error;
+  if (
+    nestedError &&
+    typeof nestedError === "object" &&
+    "message" in nestedError &&
+    typeof nestedError.message === "string"
+  ) {
+    return nestedError.message;
+  }
+  return typeof body.message === "string" ? body.message : undefined;
+}
+
+function parseProviderResponse(rawBody: string): ProviderResponse {
+  if (!rawBody) {
+    return {};
+  }
+  try {
+    return JSON.parse(rawBody) as ProviderResponse;
+  } catch {
+    return { rawBody };
+  }
+}
+
+function linkedInResponseHeaders(response: Response) {
+  return Object.fromEntries(
+    ["content-type", "x-li-request-id", "x-restli-id"]
+      .map((header) => [header, response.headers.get(header)] as const)
+      .filter(([, value]) => value !== null),
+  );
 }
 
 async function providerFetch(
@@ -56,12 +90,23 @@ async function providerFetch(
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
     const response = await fetch(url, { ...options, signal: controller.signal });
-    const body = (await response.json().catch(() => ({}))) as ProviderResponse & {
-      error?: { message?: string };
-      message?: string;
-    };
+    const body = parseProviderResponse(await response.text());
+    logger.info(
+      {
+        provider: label,
+        request: { method: options.method ?? "GET", url },
+        response: {
+          status: response.status,
+          statusText: response.statusText,
+          headers:
+            label === "LinkedIn" ? linkedInResponseHeaders(response) : undefined,
+          body,
+        },
+      },
+      "Social provider response received",
+    );
     if (!response.ok) {
-      const detail = body.error?.message ?? body.message;
+      const detail = providerErrorMessage(body);
       throw new Error(
         detail ? `${label} rejected the post: ${detail}` : `${label} rejected the post.`,
       );
@@ -81,11 +126,40 @@ async function deactivateAccount(accountId: string) {
 
 async function getUsableAccessToken(account: SocialAccount): Promise<string> {
   let accessToken: string;
+  const isLinkedIn = account.platform === "linkedin";
+  if (isLinkedIn) {
+    logger.info(
+      {
+        accountId: account.id,
+        platform: account.platform,
+        hasEncryptedAccessToken: Boolean(account.accessToken),
+        expiresAt: account.expiresAt,
+      },
+      "LinkedIn access token retrieval started",
+    );
+  }
   try {
     accessToken = decryptSocialToken(account.accessToken);
   } catch {
     await deactivateAccount(account.id);
     throw new Error("This social connection needs to be reconnected.");
+  }
+
+  if (isLinkedIn) {
+    logger.info(
+      {
+        accountId: account.id,
+        platform: account.platform,
+        tokenRetrieved: true,
+        tokenIsNonEmpty: accessToken.trim().length > 0,
+        tokenHasWhitespace: /\s/.test(accessToken),
+        tokenFormat:
+          accessToken.trim().length > 0
+            ? "opaque OAuth bearer token"
+            : "empty token",
+      },
+      "LinkedIn access token decrypted for API request",
+    );
   }
 
   const expiresSoon =
@@ -167,37 +241,81 @@ export async function postToSocial(
       post.chapterName,
       post.postLink,
     );
+    const linkedInVersion =
+      process.env.LINKEDIN_API_VERSION?.trim() || "202501";
+    const linkedInPayload = {
+      author: `urn:li:person:${account.externalUserId}`,
+      commentary: caption,
+      visibility: "PUBLIC",
+      distribution: {
+        feedDistribution: "MAIN_FEED",
+        targetEntities: [],
+        thirdPartyDistributionChannels: [],
+      },
+      lifecycleState: "PUBLISHED",
+      isReshareDisabledByAuthor: false,
+    };
+    logger.info(
+      {
+        accountId: account.id,
+        postId: post.id,
+        platform,
+        request: {
+          method: "POST",
+          url: "https://api.linkedin.com/rest/posts",
+          headers: {
+            authorization: "Bearer [REDACTED]",
+            "content-type": "application/json",
+            "Linkedin-Version": linkedInVersion,
+            "X-Restli-Protocol-Version": "2.0.0",
+          },
+          body: linkedInPayload,
+        },
+        bearerTokenPrepared: Boolean(accessToken.trim()),
+      },
+      "LinkedIn auto-post request starting",
+    );
 
-    const { response } = await providerFetch(
+    const { body, response } = await providerFetch(
       "https://api.linkedin.com/rest/posts",
       {
         method: "POST",
         headers: {
           authorization: `Bearer ${accessToken}`,
           "content-type": "application/json",
-          "Linkedin-Version": process.env.LINKEDIN_API_VERSION?.trim() || "202501",
+          "Linkedin-Version": linkedInVersion,
           "X-Restli-Protocol-Version": "2.0.0",
         },
-        body: JSON.stringify({
-          author: `urn:li:person:${account.externalUserId}`,
-          commentary: caption,
-          visibility: "PUBLIC",
-          distribution: {
-            feedDistribution: "MAIN_FEED",
-            targetEntities: [],
-            thirdPartyDistributionChannels: [],
-          },
-          lifecycleState: "PUBLISHED",
-          isReshareDisabledByAuthor: false,
-        }),
+        body: JSON.stringify(linkedInPayload),
       },
       "LinkedIn",
+    );
+    logger.info(
+      {
+        accountId: account.id,
+        postId: post.id,
+        platform,
+        outcome: "success",
+        linkedInPostId: response.headers.get("x-restli-id") ?? undefined,
+        responseBody: body,
+      },
+      "LinkedIn auto-post request completed",
     );
     return {
       status: "success",
       externalUrl: response.headers.get("x-restli-id") ?? undefined,
     };
   } catch (error) {
+    logger.error(
+      {
+        accountId: account.id,
+        postId: post.id,
+        platform,
+        err: error,
+        errorMessage: error instanceof Error ? error.message : String(error),
+      },
+      "LinkedIn auto-post request failed",
+    );
     return {
       status: "error",
       error:
@@ -230,6 +348,15 @@ export async function autoPostToConnectedAccounts(
     accounts.map((account) => [account.platform, account]),
   );
   const outcomes: AutoPostResults = {};
+  logger.info(
+    {
+      memberId,
+      postId: post.id,
+      requestedPlatforms: platforms,
+      activeAccountPlatforms: accounts.map((account) => account.platform),
+    },
+    "Auto-post account lookup completed",
+  );
 
   await Promise.all(
     platforms.map(async (platform) => {

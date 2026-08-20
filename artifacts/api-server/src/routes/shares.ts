@@ -25,6 +25,7 @@ import {
   optionalChapterSchema,
   resolveChapterScope,
 } from "./admin/shared";
+import { logger } from "../lib/logger";
 
 const router: IRouter = Router();
 const shareInputSchema = z.object({
@@ -165,6 +166,20 @@ router.post(
         sharingMember?.preferredPostPlatforms.filter(
           (platform) => platform !== "facebook" && platform !== "instagram",
         ) ?? [];
+      logger.info(
+        {
+          requestId: request.id,
+          memberId: request.user!.id,
+          postId,
+          sharePlatform: platform,
+          requestedAutoPost,
+          memberAutoPostShares: sharingMember?.autoPostShares ?? false,
+          selectedPlatforms: sharingMember?.preferredPostPlatforms ?? [],
+          publishablePlatforms,
+          willAutoPost: shouldAutoPost && publishablePlatforms.length > 0,
+        },
+        "Auto-post decision calculated for share",
+      );
 
       if (shouldAutoPost && publishablePlatforms.length) {
         try {
@@ -180,6 +195,15 @@ router.post(
               postLink: getPostLink(request, post.id),
             },
           );
+          logger.info(
+            {
+              requestId: request.id,
+              memberId: request.user!.id,
+              postId,
+              autoPosted,
+            },
+            "Auto-post attempts completed for share",
+          );
         } catch (error) {
           const message =
             error instanceof Error
@@ -191,7 +215,29 @@ router.post(
               { status: "error" as const, error: message },
             ]),
           );
+          logger.error(
+            {
+              requestId: request.id,
+              memberId: request.user!.id,
+              postId,
+              err: error,
+              autoPosted,
+            },
+            "Auto-post orchestration failed for share",
+          );
         }
+      } else {
+        logger.info(
+          {
+            requestId: request.id,
+            memberId: request.user!.id,
+            postId,
+            reason: shouldAutoPost
+              ? "no publishable platforms are selected"
+              : "auto-post is disabled for this share",
+          },
+          "Auto-post was not started for share",
+        );
       }
 
       response.status(201).json({

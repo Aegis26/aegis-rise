@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, count, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db, membersTable, postsTable, sharesTable } from "../db";
+import { logger } from "../lib/logger";
 import { requireAuth } from "../middleware/auth";
 import { HttpError } from "../utils/errors";
 
@@ -133,6 +134,7 @@ export async function findVisiblePost(postId: string, chapter: string) {
 
 router.post("/posts", requireAuth, async (request, response, next) => {
   try {
+    const requestedAutoPost = request.body?.autoPost === true;
     const input = createPostSchema.parse(request.body);
     const [createdPost] = await db
       .insert(postsTable)
@@ -148,6 +150,16 @@ router.post("/posts", requireAuth, async (request, response, next) => {
       throw new HttpError(500, "The post was created but could not be loaded.");
     }
 
+    logger.info(
+      {
+        requestId: request.id,
+        memberId: request.user!.id,
+        postId: post.id,
+        requestedAutoPost,
+        autoPostHandledBy: "POST /posts/:id/share",
+      },
+      "Post created; automatic posting is handled by the share endpoint",
+    );
     response.status(201).json({ post });
   } catch (error) {
     next(error);
