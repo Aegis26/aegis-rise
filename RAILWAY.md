@@ -43,6 +43,7 @@ the repository.
 | `LINKEDIN_CLIENT_SECRET` | LinkedIn application secret |
 | `FACEBOOK_CLIENT_ID` | Meta application client ID |
 | `FACEBOOK_CLIENT_SECRET` | Meta application secret |
+| `FACEBOOK_LOGIN_CONFIG_ID` | Optional but recommended: Meta Facebook Login for Business Configuration ID for Page publishing |
 | `INSTAGRAM_CLIENT_ID` | Instagram/Meta application client ID |
 | `INSTAGRAM_CLIENT_SECRET` | Instagram/Meta application secret |
 | `APP_BASE_URL` | The generated Railway application URL, including `https://` and no trailing slash |
@@ -57,6 +58,32 @@ the repository.
 
 `PORT`, `NODE_ENV`, and `SERVE_WEB` are set by the Railway start command or
 provided by Railway. Do not set `PORT` to a fixed local-development port.
+
+## Facebook Page publishing configuration
+
+Facebook Page publishing uses **Facebook Login for Business**. In the Meta App
+Dashboard:
+
+1. Use a **Business** type app and add the **Facebook Login for Business**
+   product.
+2. Create a **User access token** configuration that includes Page assets and
+   the `pages_show_list`, `pages_read_engagement`, and `pages_manage_posts`
+   permissions.
+3. Copy the resulting Configuration ID into `FACEBOOK_LOGIN_CONFIG_ID` for the
+   Railway application service and the development environment.
+4. Add the exact callback URL for each environment. For production, use:
+
+   ```text
+   https://YOUR-RAILWAY-DOMAIN/api/auth/social/callback/facebook
+   ```
+
+   For a Replit preview, use the current preview domain with the same callback
+   path. Preview domains can change, so update the Meta redirect URI before
+   testing from a new development host.
+5. While the Meta app is in development mode, the person connecting must be an
+   app administrator, developer, or tester and must have access to the target
+   Facebook Page. Publishing for people outside those roles requires Meta
+   business verification and Advanced Access approval for the Page permissions.
 
 ## Database setup
 

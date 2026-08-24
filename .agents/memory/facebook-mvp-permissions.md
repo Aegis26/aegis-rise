@@ -1,10 +1,18 @@
 ---
-name: Facebook MVP permissions
-description: MVP boundary for Facebook account connections
+name: Facebook Page publishing
+description: Meta requirements for connecting Facebook Pages and publishing posts.
 ---
 
-Facebook uses only `public_profile` for this MVP. It connects a member identity but is not an auto-post destination; email collection is deferred to Phase 2.
+Facebook connections target managed Facebook Pages for publishing, not personal
+profiles. Use Meta's Facebook Login for Business configuration flow for Page
+access, including `pages_show_list`, `pages_read_engagement`, and
+`pages_manage_posts`.
 
-**Why:** The product explicitly excludes Facebook Page management for the MVP. Meta does not support personal-profile publishing through this integration, so Page permissions would be required for Facebook auto-posting.
+**Why:** Meta treats Page access as a business integration. Raw Page scopes can
+be rejected when the app does not use an appropriate business-login
+configuration or lacks the required permissions.
 
-**How to apply:** Resolve Facebook through `/me` rather than Page discovery, keep Facebook out of preferred auto-post platforms, and reject Facebook posting defensively in the server.
+**How to apply:** Create a User access token configuration in the Meta
+dashboard, use its configuration identifier in the app environment, register
+each environment's exact callback URL, and obtain Advanced Access before
+serving Page publishing to people outside Meta app roles.

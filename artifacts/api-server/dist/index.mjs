@@ -81921,6 +81921,9 @@ function requireConfiguredValue(name, label) {
 function getSocialProvider(platform) {
   switch (platform) {
     case "facebook":
+      const facebookLoginConfigurationId = configuredValue(
+        "FACEBOOK_LOGIN_CONFIG_ID"
+      );
       return {
         platform,
         label: "Facebook",
@@ -81931,12 +81934,13 @@ function getSocialProvider(platform) {
         ),
         authorizationUrl: "https://www.facebook.com/v20.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v20.0/oauth/access_token",
-        scopes: [
+        scopes: facebookLoginConfigurationId ? [] : [
           "public_profile",
           "pages_show_list",
           "pages_read_engagement",
           "pages_manage_posts"
-        ]
+        ],
+        loginConfigurationId: facebookLoginConfigurationId
       };
     case "linkedin":
       return {
@@ -82032,7 +82036,11 @@ function buildAuthorizationUrl(provider, state, redirectUri) {
   url2.searchParams.set("redirect_uri", redirectUri);
   url2.searchParams.set("response_type", "code");
   url2.searchParams.set("state", state);
-  url2.searchParams.set("scope", provider.scopes.join(" "));
+  if (provider.loginConfigurationId) {
+    url2.searchParams.set("config_id", provider.loginConfigurationId);
+  } else if (provider.scopes.length > 0) {
+    url2.searchParams.set("scope", provider.scopes.join(" "));
+  }
   return url2.toString();
 }
 async function fetchJson(url2, options, providerLabel) {
@@ -83927,6 +83935,18 @@ var routes_default = router14;
 
 // src/app.ts
 var app = (0, import_express15.default)();
+function isAllowedDevelopmentOrigin(origin) {
+  try {
+    const url2 = new URL(origin);
+    if (!["http:", "https:"].includes(url2.protocol)) {
+      return false;
+    }
+    const hostname2 = url2.hostname.toLowerCase();
+    return hostname2 === "localhost" || hostname2 === "127.0.0.1" || hostname2 === "::1" || hostname2.endsWith(".replit.dev") || hostname2.endsWith(".repl.co");
+  } catch {
+    return false;
+  }
+}
 var configuredAppOrigin = (() => {
   const configuredBaseUrl = process.env.APP_BASE_URL?.trim();
   if (!configuredBaseUrl) {
@@ -83960,12 +83980,12 @@ app.use(
 app.use(
   (0, import_cors.default)({
     origin: (requestOrigin, callback) => {
-      const allowedOrigins = /* @__PURE__ */ new Set([
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        configuredAppOrigin
-      ]);
-      if (!requestOrigin || allowedOrigins.has(requestOrigin)) {
+      const allowedOrigins = new Set(
+        [configuredAppOrigin].filter(
+          (origin) => Boolean(origin)
+        )
+      );
+      if (!requestOrigin || allowedOrigins.has(requestOrigin) || process.env.NODE_ENV !== "production" && isAllowedDevelopmentOrigin(requestOrigin)) {
         callback(null, true);
         return;
       }

@@ -18,6 +18,7 @@ export interface SocialProviderConfig {
   authorizationUrl: string;
   tokenUrl: string;
   scopes: string[];
+  loginConfigurationId?: string;
 }
 
 export interface SocialTokenResult {
@@ -61,6 +62,9 @@ export function getSocialProvider(
 ): SocialProviderConfig {
   switch (platform) {
     case "facebook":
+      const facebookLoginConfigurationId = configuredValue(
+        "FACEBOOK_LOGIN_CONFIG_ID",
+      );
       return {
         platform,
         label: "Facebook",
@@ -71,12 +75,15 @@ export function getSocialProvider(
         ),
         authorizationUrl: "https://www.facebook.com/v20.0/dialog/oauth",
         tokenUrl: "https://graph.facebook.com/v20.0/oauth/access_token",
-        scopes: [
-          "public_profile",
-          "pages_show_list",
-          "pages_read_engagement",
-          "pages_manage_posts",
-        ],
+        scopes: facebookLoginConfigurationId
+          ? []
+          : [
+              "public_profile",
+              "pages_show_list",
+              "pages_read_engagement",
+              "pages_manage_posts",
+            ],
+        loginConfigurationId: facebookLoginConfigurationId,
       };
     case "linkedin":
       return {
@@ -197,7 +204,11 @@ export function buildAuthorizationUrl(
   url.searchParams.set("redirect_uri", redirectUri);
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", state);
-  url.searchParams.set("scope", provider.scopes.join(" "));
+  if (provider.loginConfigurationId) {
+    url.searchParams.set("config_id", provider.loginConfigurationId);
+  } else if (provider.scopes.length > 0) {
+    url.searchParams.set("scope", provider.scopes.join(" "));
+  }
   return url.toString();
 }
 
