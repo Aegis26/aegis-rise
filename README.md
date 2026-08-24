@@ -45,15 +45,23 @@ pnpm --filter @workspace/db run migrate
 
 Passwords must be at least 8 characters and no more than 72 UTF-8 bytes, matching bcrypt's secure input limit. Members created before Phase 2 have no password credential and must establish one before they can log in.
 
-Before accepting live signups, create the first administrator through the database after their application has been created:
+Before accepting live signups, create the first administrator through the
+database after their application has been created. Run this in a transaction
+and replace the placeholder only in the private database console:
 
 ```sql
+BEGIN;
+
 UPDATE members
 SET role = 'admin', status = 'active', updated_at = NOW()
-WHERE email = 'administrator@example.com';
+WHERE email = lower('<administrator-email>')
+  AND status = 'pending'
+RETURNING id, email, chapter, role, status;
 ```
 
-Replace the email address with the intended administrator's email. All later approvals use the authenticated admin endpoints.
+Verify that exactly one expected row is returned, then run `COMMIT;`. If no
+row or an unexpected row is returned, run `ROLLBACK;`. All later approvals use
+the authenticated admin endpoints.
 
 Administrators are chapter-scoped. Set `role = 'super_admin'` only for trusted operators who need access across all chapters. Super-admin endpoints accept an optional `?chapter=...` filter; regular administrators are always restricted to their own chapter.
 

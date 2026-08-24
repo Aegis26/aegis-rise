@@ -9,3 +9,4 @@
 - [LinkedIn image publishing](linkedin-image-publishing.md) — publish images by uploading them to LinkedIn first and reference the returned image URN in the post.
 - [Facebook MVP permissions](facebook-mvp-permissions.md) — Facebook is a basic connected account only; do not request Page scopes or permit auto-posting.
 - [Instagram MVP permissions](instagram-mvp-permissions.md) — Instagram is basic authentication only in Phase 1; defer professional-account access and publishing.
+- [Railway deployment topology](railway-deployment-topology.md) — deploy web and API together on one origin to preserve relative API calls and OAuth callbacks.

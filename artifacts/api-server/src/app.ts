@@ -1,11 +1,27 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import path from "node:path";
+import { existsSync } from "node:fs";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { errorHandler } from "./utils/errors";
 
 const app: Express = express();
+
+const configuredAppOrigin = (() => {
+  const configuredBaseUrl = process.env.APP_BASE_URL?.trim();
+  if (!configuredBaseUrl) {
+    return undefined;
+  }
+
+  const parsed = new URL(configuredBaseUrl);
+  if (!["http:", "https:"].includes(parsed.protocol)) {
+    throw new Error("APP_BASE_URL must use HTTP or HTTPS.");
+  }
+
+  return parsed.origin;
+})();
 
 app.use(
   pinoHttp({
@@ -28,7 +44,20 @@ app.use(
 );
 app.use(
   cors({
-    origin: ["http://localhost:3000", "http://127.0.0.1:3000"],
+    origin: (requestOrigin, callback) => {
+      const allowedOrigins = new Set([
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        configuredAppOrigin,
+      ]);
+
+      if (!requestOrigin || allowedOrigins.has(requestOrigin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error("Origin is not allowed by the API."));
+    },
     credentials: true,
   }),
 );
@@ -36,6 +65,40 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+const serveWeb = process.env.SERVE_WEB === "true";
+const webDistPath = path.resolve(
+  process.cwd(),
+  "artifacts/aegis-rise-web/dist/public",
+);
+const webIndexPath = path.join(webDistPath, "index.html");
+
+if (serveWeb && !existsSync(webIndexPath)) {
+  throw new Error(
+    `The production web bundle is missing at ${webIndexPath}. Run the Railway web build before starting the API.`,
+  );
+}
+
+if (serveWeb) {
+  app.use(express.static(webDistPath, { index: false }));
+  app.use((request, response, next) => {
+    if (
+      request.method !== "GET" ||
+      request.path === "/api" ||
+      request.path.startsWith("/api/")
+    ) {
+      next();
+      return;
+    }
+
+    response.sendFile(webIndexPath, (error) => {
+      if (error) {
+        next(error);
+      }
+    });
+  });
+}
+
 app.use(errorHandler);
 
 export default app;

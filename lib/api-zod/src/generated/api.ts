@@ -16,6 +16,14 @@ export const HealthCheckResponse = zod.object({
 })
 
 
+/**
+ * @summary Database readiness check
+ */
+export const ReadinessCheckResponse = zod.object({
+  "status": zod.string()
+})
+
+
 export const signupBodyPasswordMin = 8;
 
 
