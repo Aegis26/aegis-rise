@@ -9,6 +9,26 @@ import { errorHandler } from "./utils/errors";
 
 const app: Express = express();
 
+function isAllowedDevelopmentOrigin(origin: string): boolean {
+  try {
+    const url = new URL(origin);
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return false;
+    }
+
+    const hostname = url.hostname.toLowerCase();
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "::1" ||
+      hostname.endsWith(".replit.dev") ||
+      hostname.endsWith(".repl.co")
+    );
+  } catch {
+    return false;
+  }
+}
+
 const configuredAppOrigin = (() => {
   const configuredBaseUrl = process.env.APP_BASE_URL?.trim();
   if (!configuredBaseUrl) {
@@ -45,13 +65,18 @@ app.use(
 app.use(
   cors({
     origin: (requestOrigin, callback) => {
-      const allowedOrigins = new Set([
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        configuredAppOrigin,
-      ]);
+      const allowedOrigins = new Set(
+        [configuredAppOrigin].filter(
+          (origin): origin is string => Boolean(origin),
+        ),
+      );
 
-      if (!requestOrigin || allowedOrigins.has(requestOrigin)) {
+      if (
+        !requestOrigin ||
+        allowedOrigins.has(requestOrigin) ||
+        (process.env.NODE_ENV !== "production" &&
+          isAllowedDevelopmentOrigin(requestOrigin))
+      ) {
         callback(null, true);
         return;
       }
