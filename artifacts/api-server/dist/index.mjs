@@ -82121,7 +82121,7 @@ async function exchangeMetaForLongLivedToken(provider, accessToken) {
   }
   return token;
 }
-async function resolveFacebookPageFromGrantedTargets(provider, memberAccessToken) {
+async function resolveMetaPageFromGrantedTargets(provider, memberAccessToken) {
   const debugUrl = new URL("https://graph.facebook.com/v20.0/debug_token");
   debugUrl.searchParams.set("input_token", memberAccessToken);
   debugUrl.searchParams.set(
@@ -82147,7 +82147,10 @@ async function resolveFacebookPageFromGrantedTargets(provider, memberAccessToken
     const pageUrl = new URL(
       `https://graph.facebook.com/v20.0/${encodeURIComponent(targetId)}`
     );
-    pageUrl.searchParams.set("fields", "id,access_token");
+    pageUrl.searchParams.set(
+      "fields",
+      provider.platform === "instagram" ? "id,access_token,instagram_business_account{id}" : "id,access_token"
+    );
     pageUrl.searchParams.set("access_token", memberAccessToken);
     const page = await fetchJson(
       pageUrl.toString(),
@@ -82194,7 +82197,7 @@ async function resolveMetaAccount(provider, memberAccessToken, expiresAt) {
   ) : pages.data?.find(
     (candidate) => candidate.id && candidate.access_token
   );
-  const page = listedPage ?? (provider.platform === "facebook" ? await resolveFacebookPageFromGrantedTargets(provider, memberAccessToken) : void 0);
+  const page = listedPage ?? (provider.platform === "facebook" || provider.platform === "instagram" ? await resolveMetaPageFromGrantedTargets(provider, memberAccessToken) : void 0);
   if (!page?.id || !page.access_token) {
     return {
       accessToken: memberAccessToken,
