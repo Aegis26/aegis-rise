@@ -836,7 +836,7 @@ components:
         status: { type: string, enum: [pending, active, banned] }
     Member:
       type: object
-      required: [id, email, name, title, company, chapter, themePreference, primaryColor, accentColor, profileBackgroundColor, autoPostShares, preferredPostPlatforms, role, status, createdAt, updatedAt]
+      required: [id, email, name, title, company, chapter, themePreference, primaryColor, accentColor, profileBackgroundColor, profileWallpaperScale, autoPostShares, preferredPostPlatforms, role, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -851,6 +851,7 @@ components:
         accentColor: { type: string }
         profileBackgroundColor: { type: string }
         profileWallpaperUrl: { type: [string, "null"], format: uri }
+        profileWallpaperScale: { type: integer, minimum: 50, maximum: 200, default: 100 }
         autoPostShares: { type: boolean }
         preferredPostPlatforms:
           type: array
@@ -872,6 +873,7 @@ components:
         accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
         profileBackgroundColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
         profileWallpaperUrl: { type: [string, "null"], format: uri }
+        profileWallpaperScale: { type: integer, minimum: 50, maximum: 200 }
         autoPostShares: { type: boolean }
         preferredPostPlatforms:
           type: array
@@ -899,7 +901,7 @@ components:
           items: { $ref: "#/components/schemas/MemberSummary" }
     PublicMember:
       type: object
-      required: [id, name, title, company, primaryColor, accentColor, profileBackgroundColor]
+      required: [id, name, title, company, primaryColor, accentColor, profileBackgroundColor, profileWallpaperScale]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -911,6 +913,7 @@ components:
         accentColor: { type: string }
         profileBackgroundColor: { type: string }
         profileWallpaperUrl: { type: [string, "null"], format: uri }
+        profileWallpaperScale: { type: integer, minimum: 50, maximum: 200, default: 100 }
     PublicMemberResponse:
       type: object
       required: [member]

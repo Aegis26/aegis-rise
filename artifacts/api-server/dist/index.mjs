@@ -73255,6 +73255,7 @@ var membersTable = pgTable(
     accentColor: text("accent_color").default("#14B8A6").notNull(),
     profileBackgroundColor: text("profile_background_color").default("#111827").notNull(),
     profileWallpaperUrl: text("profile_wallpaper_url"),
+    profileWallpaperScale: integer("profile_wallpaper_scale").default(100).notNull(),
     autoPostShares: boolean("auto_post_shares").default(false).notNull(),
     preferredPostPlatforms: socialPlatformEnum("preferred_post_platforms").array().default(sql`ARRAY[]::social_platform[]`).notNull(),
     role: memberRoleEnum("role").default("member").notNull(),
@@ -80751,6 +80752,9 @@ var DisconnectSocialAccountResponse = objectType({
 var DisconnectSocialAccountGetResponse = objectType({
   "message": stringType()
 });
+var getCurrentMemberResponseMemberProfileWallpaperScaleDefault = 100;
+var getCurrentMemberResponseMemberProfileWallpaperScaleMin = 50;
+var getCurrentMemberResponseMemberProfileWallpaperScaleMax = 200;
 var GetCurrentMemberResponse = objectType({
   "member": objectType({
     "id": stringType().uuid(),
@@ -80766,6 +80770,7 @@ var GetCurrentMemberResponse = objectType({
     "accentColor": stringType(),
     "profileBackgroundColor": stringType(),
     "profileWallpaperUrl": stringType().url().nullish(),
+    "profileWallpaperScale": numberType().int().min(getCurrentMemberResponseMemberProfileWallpaperScaleMin).max(getCurrentMemberResponseMemberProfileWallpaperScaleMax).default(getCurrentMemberResponseMemberProfileWallpaperScaleDefault),
     "autoPostShares": booleanType(),
     "preferredPostPlatforms": arrayType(enumType(["facebook", "linkedin", "instagram"])),
     "role": enumType(["member", "admin", "super_admin"]),
@@ -80777,6 +80782,8 @@ var GetCurrentMemberResponse = objectType({
 var updateCurrentMemberBodyPrimaryColorRegExp = new RegExp("^#[0-9A-Fa-f]{6}$");
 var updateCurrentMemberBodyAccentColorRegExp = new RegExp("^#[0-9A-Fa-f]{6}$");
 var updateCurrentMemberBodyProfileBackgroundColorRegExp = new RegExp("^#[0-9A-Fa-f]{6}$");
+var updateCurrentMemberBodyProfileWallpaperScaleMin = 50;
+var updateCurrentMemberBodyProfileWallpaperScaleMax = 200;
 var updateCurrentMemberBodyPreferredPostPlatformsMax = 3;
 var UpdateCurrentMemberBody = objectType({
   "name": stringType().optional(),
@@ -80789,9 +80796,13 @@ var UpdateCurrentMemberBody = objectType({
   "accentColor": stringType().regex(updateCurrentMemberBodyAccentColorRegExp).optional(),
   "profileBackgroundColor": stringType().regex(updateCurrentMemberBodyProfileBackgroundColorRegExp).optional(),
   "profileWallpaperUrl": stringType().url().nullish(),
+  "profileWallpaperScale": numberType().int().min(updateCurrentMemberBodyProfileWallpaperScaleMin).max(updateCurrentMemberBodyProfileWallpaperScaleMax).optional(),
   "autoPostShares": booleanType().optional(),
   "preferredPostPlatforms": arrayType(enumType(["facebook", "linkedin", "instagram"])).max(updateCurrentMemberBodyPreferredPostPlatformsMax).optional()
 });
+var updateCurrentMemberResponseMemberProfileWallpaperScaleDefault = 100;
+var updateCurrentMemberResponseMemberProfileWallpaperScaleMin = 50;
+var updateCurrentMemberResponseMemberProfileWallpaperScaleMax = 200;
 var UpdateCurrentMemberResponse = objectType({
   "member": objectType({
     "id": stringType().uuid(),
@@ -80807,6 +80818,7 @@ var UpdateCurrentMemberResponse = objectType({
     "accentColor": stringType(),
     "profileBackgroundColor": stringType(),
     "profileWallpaperUrl": stringType().url().nullish(),
+    "profileWallpaperScale": numberType().int().min(updateCurrentMemberResponseMemberProfileWallpaperScaleMin).max(updateCurrentMemberResponseMemberProfileWallpaperScaleMax).default(updateCurrentMemberResponseMemberProfileWallpaperScaleDefault),
     "autoPostShares": booleanType(),
     "preferredPostPlatforms": arrayType(enumType(["facebook", "linkedin", "instagram"])),
     "role": enumType(["member", "admin", "super_admin"]),
@@ -80824,6 +80836,9 @@ var ListMembersResponse = objectType({
     "profilePictureUrl": stringType().url().nullish()
   }))
 });
+var getMemberResponseMemberProfileWallpaperScaleDefault = 100;
+var getMemberResponseMemberProfileWallpaperScaleMin = 50;
+var getMemberResponseMemberProfileWallpaperScaleMax = 200;
 var GetMemberResponse = objectType({
   "member": objectType({
     "id": stringType().uuid(),
@@ -80835,7 +80850,8 @@ var GetMemberResponse = objectType({
     "primaryColor": stringType(),
     "accentColor": stringType(),
     "profileBackgroundColor": stringType(),
-    "profileWallpaperUrl": stringType().url().nullish()
+    "profileWallpaperUrl": stringType().url().nullish(),
+    "profileWallpaperScale": numberType().int().min(getMemberResponseMemberProfileWallpaperScaleMin).max(getMemberResponseMemberProfileWallpaperScaleMax).default(getMemberResponseMemberProfileWallpaperScaleDefault)
   })
 });
 var listMemberPostsResponsePostsItemImagesItemPositionMin = 0;
@@ -81481,6 +81497,7 @@ var updateProfileSchema = external_exports.object({
   accentColor: external_exports.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   profileBackgroundColor: external_exports.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
   profileWallpaperUrl: external_exports.string().url().max(2048).nullable().optional(),
+  profileWallpaperScale: external_exports.number().int().min(50).max(200).optional(),
   autoPostShares: external_exports.boolean().optional(),
   preferredPostPlatforms: external_exports.array(socialPlatformSchema).max(3).optional()
 }).refine((value) => Object.keys(value).length > 0, {
@@ -81521,6 +81538,7 @@ router9.get("/members/me", requireAuth, async (request, response, next) => {
       accentColor: membersTable.accentColor,
       profileBackgroundColor: membersTable.profileBackgroundColor,
       profileWallpaperUrl: membersTable.profileWallpaperUrl,
+      profileWallpaperScale: membersTable.profileWallpaperScale,
       autoPostShares: membersTable.autoPostShares,
       preferredPostPlatforms: membersTable.preferredPostPlatforms,
       role: membersTable.role,
@@ -81565,6 +81583,7 @@ router9.patch("/members/me", requireAuth, async (request, response, next) => {
       accentColor: membersTable.accentColor,
       profileBackgroundColor: membersTable.profileBackgroundColor,
       profileWallpaperUrl: membersTable.profileWallpaperUrl,
+      profileWallpaperScale: membersTable.profileWallpaperScale,
       autoPostShares: membersTable.autoPostShares,
       preferredPostPlatforms: membersTable.preferredPostPlatforms,
       role: membersTable.role,
@@ -81596,7 +81615,8 @@ router9.get("/members/:id", requireAuth, async (request, response, next) => {
       primaryColor: membersTable.primaryColor,
       accentColor: membersTable.accentColor,
       profileBackgroundColor: membersTable.profileBackgroundColor,
-      profileWallpaperUrl: membersTable.profileWallpaperUrl
+      profileWallpaperUrl: membersTable.profileWallpaperUrl,
+      profileWallpaperScale: membersTable.profileWallpaperScale
     }).from(membersTable).where(
       and(
         eq(membersTable.id, memberId.data),

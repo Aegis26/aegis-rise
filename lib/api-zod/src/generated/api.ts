@@ -106,6 +106,12 @@ export const DisconnectSocialAccountGetResponse = zod.object({
 })
 
 
+export const getCurrentMemberResponseMemberProfileWallpaperScaleDefault = 100;
+export const getCurrentMemberResponseMemberProfileWallpaperScaleMin = 50;
+export const getCurrentMemberResponseMemberProfileWallpaperScaleMax = 200;
+
+
+
 export const GetCurrentMemberResponse = zod.object({
   "member": zod.object({
   "id": zod.string().uuid(),
@@ -121,6 +127,7 @@ export const GetCurrentMemberResponse = zod.object({
   "accentColor": zod.string(),
   "profileBackgroundColor": zod.string(),
   "profileWallpaperUrl": zod.string().url().nullish(),
+  "profileWallpaperScale": zod.number().int().min(getCurrentMemberResponseMemberProfileWallpaperScaleMin).max(getCurrentMemberResponseMemberProfileWallpaperScaleMax).default(getCurrentMemberResponseMemberProfileWallpaperScaleDefault),
   "autoPostShares": zod.boolean(),
   "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])),
   "role": zod.enum(['member', 'admin', 'super_admin']),
@@ -134,6 +141,9 @@ export const GetCurrentMemberResponse = zod.object({
 export const updateCurrentMemberBodyPrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const updateCurrentMemberBodyAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const updateCurrentMemberBodyProfileBackgroundColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateCurrentMemberBodyProfileWallpaperScaleMin = 50;
+export const updateCurrentMemberBodyProfileWallpaperScaleMax = 200;
+
 export const updateCurrentMemberBodyPreferredPostPlatformsMax = 3;
 
 
@@ -149,9 +159,16 @@ export const UpdateCurrentMemberBody = zod.object({
   "accentColor": zod.string().regex(updateCurrentMemberBodyAccentColorRegExp).optional(),
   "profileBackgroundColor": zod.string().regex(updateCurrentMemberBodyProfileBackgroundColorRegExp).optional(),
   "profileWallpaperUrl": zod.string().url().nullish(),
+  "profileWallpaperScale": zod.number().int().min(updateCurrentMemberBodyProfileWallpaperScaleMin).max(updateCurrentMemberBodyProfileWallpaperScaleMax).optional(),
   "autoPostShares": zod.boolean().optional(),
   "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])).max(updateCurrentMemberBodyPreferredPostPlatformsMax).optional()
 })
+
+export const updateCurrentMemberResponseMemberProfileWallpaperScaleDefault = 100;
+export const updateCurrentMemberResponseMemberProfileWallpaperScaleMin = 50;
+export const updateCurrentMemberResponseMemberProfileWallpaperScaleMax = 200;
+
+
 
 export const UpdateCurrentMemberResponse = zod.object({
   "member": zod.object({
@@ -168,6 +185,7 @@ export const UpdateCurrentMemberResponse = zod.object({
   "accentColor": zod.string(),
   "profileBackgroundColor": zod.string(),
   "profileWallpaperUrl": zod.string().url().nullish(),
+  "profileWallpaperScale": zod.number().int().min(updateCurrentMemberResponseMemberProfileWallpaperScaleMin).max(updateCurrentMemberResponseMemberProfileWallpaperScaleMax).default(updateCurrentMemberResponseMemberProfileWallpaperScaleDefault),
   "autoPostShares": zod.boolean(),
   "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])),
   "role": zod.enum(['member', 'admin', 'super_admin']),
@@ -189,6 +207,12 @@ export const ListMembersResponse = zod.object({
 })
 
 
+export const getMemberResponseMemberProfileWallpaperScaleDefault = 100;
+export const getMemberResponseMemberProfileWallpaperScaleMin = 50;
+export const getMemberResponseMemberProfileWallpaperScaleMax = 200;
+
+
+
 export const GetMemberResponse = zod.object({
   "member": zod.object({
   "id": zod.string().uuid(),
@@ -200,7 +224,8 @@ export const GetMemberResponse = zod.object({
   "primaryColor": zod.string(),
   "accentColor": zod.string(),
   "profileBackgroundColor": zod.string(),
-  "profileWallpaperUrl": zod.string().url().nullish()
+  "profileWallpaperUrl": zod.string().url().nullish(),
+  "profileWallpaperScale": zod.number().int().min(getMemberResponseMemberProfileWallpaperScaleMin).max(getMemberResponseMemberProfileWallpaperScaleMax).default(getMemberResponseMemberProfileWallpaperScaleDefault)
 })
 })
 

@@ -54,17 +54,25 @@ export default function PublicProfile({ memberId }: { memberId: string }) {
   const customColor = member.primaryColor;
   const bgColor = member.profileBackgroundColor;
   const wallpaperUrl = member.profileWallpaperUrl;
+  const wallpaperScale = Math.min(
+    200,
+    Math.max(50, member.profileWallpaperScale || 100),
+  );
 
   return (
     <div
-      className="min-h-[calc(100vh-4rem)] w-full relative"
+      className="min-h-[calc(100vh-4rem)] w-full relative overflow-hidden"
       style={{ backgroundColor: bgColor }}
     >
       {/* Optional full-page wallpaper with parallax / fixed attachment */}
       {wallpaperUrl && (
         <div
           className="absolute inset-0 bg-cover bg-center bg-fixed opacity-15 pointer-events-none mix-blend-luminosity"
-          style={{ backgroundImage: `url(${wallpaperUrl})` }}
+          style={{
+            backgroundImage: `url(${wallpaperUrl})`,
+            transform: `scale(${wallpaperScale / 100})`,
+            transformOrigin: "center",
+          }}
         />
       )}
 
@@ -90,6 +98,7 @@ export default function PublicProfile({ memberId }: { memberId: string }) {
           accentColor={member.accentColor || member.primaryColor}
           backgroundColor={member.profileBackgroundColor}
           wallpaperUrl={member.profileWallpaperUrl}
+          wallpaperScale={member.profileWallpaperScale}
         />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">

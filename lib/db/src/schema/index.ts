@@ -84,6 +84,9 @@ export const membersTable = pgTable(
       .default("#111827")
       .notNull(),
     profileWallpaperUrl: text("profile_wallpaper_url"),
+    profileWallpaperScale: integer("profile_wallpaper_scale")
+      .default(100)
+      .notNull(),
     autoPostShares: boolean("auto_post_shares").default(false).notNull(),
     preferredPostPlatforms: socialPlatformEnum("preferred_post_platforms")
       .array()

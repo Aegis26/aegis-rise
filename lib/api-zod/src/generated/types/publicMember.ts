@@ -20,4 +20,9 @@ export interface PublicMember {
   profileBackgroundColor: string;
   /** @nullable */
   profileWallpaperUrl?: string | null;
+  /**
+     * @minimum 50
+     * @maximum 200
+     */
+  profileWallpaperScale: number;
 }

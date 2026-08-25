@@ -25,6 +25,7 @@ const updateProfileSchema = z
       .regex(/^#[0-9A-Fa-f]{6}$/)
       .optional(),
     profileWallpaperUrl: z.string().url().max(2_048).nullable().optional(),
+    profileWallpaperScale: z.number().int().min(50).max(200).optional(),
     autoPostShares: z.boolean().optional(),
     preferredPostPlatforms: z.array(socialPlatformSchema).max(3).optional(),
   })
@@ -74,6 +75,7 @@ router.get("/members/me", requireAuth, async (request, response, next) => {
         accentColor: membersTable.accentColor,
         profileBackgroundColor: membersTable.profileBackgroundColor,
         profileWallpaperUrl: membersTable.profileWallpaperUrl,
+        profileWallpaperScale: membersTable.profileWallpaperScale,
         autoPostShares: membersTable.autoPostShares,
         preferredPostPlatforms: membersTable.preferredPostPlatforms,
         role: membersTable.role,
@@ -132,6 +134,7 @@ router.patch("/members/me", requireAuth, async (request, response, next) => {
         accentColor: membersTable.accentColor,
         profileBackgroundColor: membersTable.profileBackgroundColor,
         profileWallpaperUrl: membersTable.profileWallpaperUrl,
+        profileWallpaperScale: membersTable.profileWallpaperScale,
         autoPostShares: membersTable.autoPostShares,
         preferredPostPlatforms: membersTable.preferredPostPlatforms,
         role: membersTable.role,
@@ -169,6 +172,7 @@ router.get("/members/:id", requireAuth, async (request, response, next) => {
         accentColor: membersTable.accentColor,
         profileBackgroundColor: membersTable.profileBackgroundColor,
         profileWallpaperUrl: membersTable.profileWallpaperUrl,
+        profileWallpaperScale: membersTable.profileWallpaperScale,
       })
       .from(membersTable)
       .where(

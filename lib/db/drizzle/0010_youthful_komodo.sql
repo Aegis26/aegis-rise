@@ -1,0 +1,1 @@
+ALTER TABLE "members" ADD COLUMN "profile_wallpaper_scale" integer DEFAULT 100 NOT NULL;

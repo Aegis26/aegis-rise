@@ -48,6 +48,7 @@ const profileSchema = z.object({
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code"),
   accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code").optional().default("#00aaff"),
   profileBackgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code").optional().default("#0a0a0a"),
+  profileWallpaperScale: z.number().int().min(50).max(200).default(100),
   autoPostShares: z.boolean(),
   preferredPostPlatforms: z.array(z.enum(["facebook", "linkedin", "instagram"])),
 });
@@ -133,6 +134,7 @@ export default function Profile() {
       primaryColor: "#00aaff",
       accentColor: "#00aaff",
       profileBackgroundColor: "#0a0a0a",
+      profileWallpaperScale: 100,
       autoPostShares: false,
       preferredPostPlatforms: [],
     },
@@ -155,6 +157,7 @@ export default function Profile() {
         primaryColor: memberData.member.primaryColor || "#00aaff",
         accentColor: memberData.member.accentColor || memberData.member.primaryColor,
         profileBackgroundColor: memberData.member.profileBackgroundColor || "#0a0a0a",
+        profileWallpaperScale: memberData.member.profileWallpaperScale || 100,
         autoPostShares: memberData.member.autoPostShares,
         preferredPostPlatforms: memberData.member.preferredPostPlatforms,
       });
@@ -344,6 +347,7 @@ export default function Profile() {
   const watchPrimaryColor = form.watch("primaryColor");
   const watchAccentColor = form.watch("accentColor");
   const watchBackgroundColor = form.watch("profileBackgroundColor");
+  const watchWallpaperScale = form.watch("profileWallpaperScale");
   const watchName = form.watch("name");
   const watchTitle = form.watch("title");
   const watchCompany = form.watch("company");
@@ -376,6 +380,7 @@ export default function Profile() {
           accentColor={watchAccentColor}
           backgroundColor={watchBackgroundColor}
           wallpaperUrl={wallpaperUrlForPreview}
+          wallpaperScale={watchWallpaperScale}
         />
         <div className="flex gap-2 mt-4 justify-end">
           <input
@@ -885,6 +890,50 @@ export default function Profile() {
                       )}
                     />
                   </div>
+                  <FormField
+                    control={form.control}
+                    name="profileWallpaperScale"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="flex items-center justify-between gap-4">
+                          <div>
+                            <FormLabel>Wallpaper Size</FormLabel>
+                            <FormDescription>
+                              Make the wallpaper smaller or zoom in for a closer crop.
+                            </FormDescription>
+                          </div>
+                          <span
+                            className="min-w-14 rounded-md bg-muted px-2 py-1 text-right text-sm font-mono"
+                            data-testid="text-profile-wallpaper-scale"
+                          >
+                            {field.value ?? 100}%
+                          </span>
+                        </div>
+                        <FormControl>
+                          <input
+                            {...field}
+                            type="range"
+                            min={50}
+                            max={200}
+                            step={5}
+                            value={field.value ?? 100}
+                            onChange={(event) =>
+                              field.onChange(Number(event.target.value))
+                            }
+                            aria-label="Wallpaper size"
+                            className="mt-3 h-2 w-full cursor-pointer accent-primary"
+                            data-testid="input-profile-wallpaper-scale"
+                          />
+                        </FormControl>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Smaller</span>
+                          <span>Default 100%</span>
+                          <span>Larger</span>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                 </CardContent>
               </Card>
 

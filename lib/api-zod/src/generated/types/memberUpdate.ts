@@ -25,6 +25,11 @@ export interface MemberUpdate {
   profileBackgroundColor?: string;
   /** @nullable */
   profileWallpaperUrl?: string | null;
+  /**
+     * @minimum 50
+     * @maximum 200
+     */
+  profileWallpaperScale?: number;
   autoPostShares?: boolean;
   /** @maxItems 3 */
   preferredPostPlatforms?: SocialPlatform[];

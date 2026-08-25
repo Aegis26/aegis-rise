@@ -12,6 +12,7 @@ interface ProfileHeroProps {
   accentColor?: string;
   backgroundColor?: string;
   wallpaperUrl?: string | null;
+  wallpaperScale?: number;
 }
 
 export function ProfileHero({ 
@@ -19,12 +20,14 @@ export function ProfileHero({
   primaryColor = "#00aaff", 
   accentColor = "#00aaff", 
   backgroundColor = "#0a0a0a", 
-  wallpaperUrl 
+  wallpaperUrl,
+  wallpaperScale = 100,
 }: ProfileHeroProps) {
   // Ensure default colors to prevent errors
   const bg = backgroundColor || "#0a0a0a";
   const primary = primaryColor || "#00aaff";
   const accent = accentColor || primary;
+  const scale = Math.min(200, Math.max(50, wallpaperScale || 100));
   
   return (
     <div 
@@ -38,7 +41,9 @@ export function ProfileHero({
         style={{ 
           backgroundImage: wallpaperUrl ? `url(${wallpaperUrl})` : 'none',
           opacity: wallpaperUrl ? 0.35 : 0,
-          mixBlendMode: 'luminosity' 
+          mixBlendMode: 'luminosity',
+          transform: `scale(${scale / 100})`,
+          transformOrigin: "center",
         }}
       />
       {/* Gradient to darken the bottom for text readability */}
