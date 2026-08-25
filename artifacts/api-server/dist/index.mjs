@@ -82121,6 +82121,45 @@ async function exchangeMetaForLongLivedToken(provider, accessToken) {
   }
   return token;
 }
+async function resolveFacebookPageFromGrantedTargets(provider, memberAccessToken) {
+  const debugUrl = new URL("https://graph.facebook.com/v20.0/debug_token");
+  debugUrl.searchParams.set("input_token", memberAccessToken);
+  debugUrl.searchParams.set(
+    "access_token",
+    `${provider.clientId}|${provider.clientSecret}`
+  );
+  const debugToken = await fetchJson(
+    debugUrl.toString(),
+    { method: "GET" },
+    provider.label
+  );
+  const pageScopes = /* @__PURE__ */ new Set([
+    "pages_show_list",
+    "pages_read_engagement",
+    "pages_manage_posts"
+  ]);
+  const targetIds = [
+    ...new Set(
+      (debugToken.data?.granular_scopes ?? []).filter((scope) => pageScopes.has(scope.scope ?? "")).flatMap((scope) => scope.target_ids ?? [])
+    )
+  ];
+  for (const targetId of targetIds) {
+    const pageUrl = new URL(
+      `https://graph.facebook.com/v20.0/${encodeURIComponent(targetId)}`
+    );
+    pageUrl.searchParams.set("fields", "id,access_token");
+    pageUrl.searchParams.set("access_token", memberAccessToken);
+    const page = await fetchJson(
+      pageUrl.toString(),
+      { method: "GET" },
+      provider.label
+    );
+    if (page.id && page.access_token) {
+      return page;
+    }
+  }
+  return void 0;
+}
 async function resolveMetaAccount(provider, memberAccessToken, expiresAt) {
   if (provider.platform !== "facebook" && provider.platform !== "instagram") {
     throw new HttpError(500, "This provider does not use Meta account resolution.");
@@ -82150,11 +82189,12 @@ async function resolveMetaAccount(provider, memberAccessToken, expiresAt) {
     { method: "GET" },
     provider.label
   );
-  const page = provider.platform === "instagram" ? pages.data?.find(
+  const listedPage = provider.platform === "instagram" ? pages.data?.find(
     (candidate) => candidate.id && candidate.access_token && candidate.instagram_business_account?.id
   ) : pages.data?.find(
     (candidate) => candidate.id && candidate.access_token
   );
+  const page = listedPage ?? (provider.platform === "facebook" ? await resolveFacebookPageFromGrantedTargets(provider, memberAccessToken) : void 0);
   if (!page?.id || !page.access_token) {
     return {
       accessToken: memberAccessToken,
