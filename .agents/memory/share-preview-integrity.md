@@ -1,10 +1,10 @@
 ---
 name: Share preview integrity
-description: Rules for retaining mandatory share-preview content under platform limits.
+description: Share previews and external captions must contain only the member's original post text.
 ---
 
-LinkedIn auto-posts and previews use the member's caption only. Other platform previews may still reserve their configured attribution, chapter, post-link, and hashtag suffix before truncating the caption; if that suffix cannot fit safely, reject the preview rather than returning incomplete copy.
+All share previews, direct-link copy text, and external social captions use only the member's trimmed original caption. Do not append Aegis Rise attribution, chapter names, post links, or generated hashtags.
 
-**Why:** Truncating the final assembled string can silently remove the very link, attribution, or hashtag that makes a share useful.
+**Why:** The product owner wants members' posts to appear externally exactly as written, without generated promotional text.
 
-**How to apply:** Keep each platform's output within its UTF-16 character limit without splitting Unicode code points. For LinkedIn, do not append metadata. Use a configured canonical app URL in production; development-only request-origin fallback must only accept approved local or Replit development hosts.
+**How to apply:** Return the trimmed member caption for every share platform and keep generated hashtag output empty. Preserve the existing API response shape and platform notes for UI compatibility.

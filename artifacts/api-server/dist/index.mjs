@@ -81815,20 +81815,6 @@ var sharePlatforms2 = [
   "TikTok",
   "Direct Link"
 ];
-var platformCharacterLimits = {
-  LinkedIn: 3e3,
-  Instagram: 2200,
-  Facebook: 63206,
-  TikTok: 2200,
-  "Direct Link": 5e3
-};
-var platformHashtags = {
-  LinkedIn: "#AegisRise #NetworkingWorks",
-  Instagram: "#AegisRise",
-  Facebook: "",
-  TikTok: "",
-  "Direct Link": ""
-};
 var platformNotes = {
   LinkedIn: "Copy this text into your LinkedIn post.",
   Instagram: "Copy this text into your Instagram caption.",
@@ -81836,67 +81822,11 @@ var platformNotes = {
   TikTok: "Copy this text into your TikTok caption.",
   "Direct Link": "Copy the link to share this post directly."
 };
-function authorHandle(authorName) {
-  const handle = authorName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
-  return handle || "aegis-rise-member";
+function formatShareText(post, _platform, _authorName, _chapterName, _postLink) {
+  return post.caption.trim();
 }
-function truncateToLimit(value, limit) {
-  if (value.length <= limit) {
-    return value;
-  }
-  let truncated = "";
-  for (const character of value) {
-    if (truncated.length + character.length + 1 > limit) {
-      break;
-    }
-    truncated += character;
-  }
-  return `${truncated}\u2026`;
-}
-function formatShareText(post, platform, authorName, chapterName, postLink) {
-  if (platform === "LinkedIn") {
-    return post.caption.trim();
-  }
-  const shareLines = {
-    LinkedIn: [
-      `Shared from ${authorName} via Aegis Rise \u{1F680}`,
-      `${chapterName} - Connect. Collaborate. Grow.`,
-      `Learn more: ${postLink}`,
-      platformHashtags.LinkedIn
-    ],
-    Instagram: [
-      `Shared from @${authorHandle(authorName)} via Aegis Rise \u{1F680}`,
-      `${chapterName} ${platformHashtags.Instagram}`
-    ],
-    Facebook: [
-      `Shared from ${authorName} via Aegis Rise`,
-      `Check out more from ${chapterName}: ${postLink}`
-    ],
-    TikTok: [
-      `Shared from ${authorName} via Aegis Rise \u{1F680}`,
-      chapterName
-    ],
-    "Direct Link": [
-      `View on Aegis Rise: ${postLink}`,
-      chapterName
-    ]
-  }[platform];
-  const limit = platformCharacterLimits[platform];
-  const suffix = shareLines.filter(Boolean).join("\n");
-  if (suffix.length + 3 > limit) {
-    throw new HttpError(
-      500,
-      `${platform} share preview configuration is too long.`
-    );
-  }
-  const captionBudget = limit - suffix.length - 2;
-  const caption = truncateToLimit(post.caption.trim(), captionBudget);
-  return caption ? `${caption}
-
-${suffix}` : suffix;
-}
-function getShareHashtags(platform) {
-  return platformHashtags[platform];
+function getShareHashtags(_platform) {
+  return "";
 }
 function getShareNote(platform) {
   return platformNotes[platform];
