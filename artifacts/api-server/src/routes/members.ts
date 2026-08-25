@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db, membersTable } from "../db";
+import { isMemberProfileWallpaperUrl } from "../lib/r2";
 import { requireAuth } from "../middleware/auth";
 import { HttpError } from "../utils/errors";
 
@@ -18,6 +19,12 @@ const updateProfileSchema = z
     profilePictureUrl: z.string().url().max(2_048).nullable().optional(),
     themePreference: z.enum(["light", "dark"]).optional(),
     primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+    profileBackgroundColor: z
+      .string()
+      .regex(/^#[0-9A-Fa-f]{6}$/)
+      .optional(),
+    profileWallpaperUrl: z.string().url().max(2_048).nullable().optional(),
     autoPostShares: z.boolean().optional(),
     preferredPostPlatforms: z.array(socialPlatformSchema).max(3).optional(),
   })
@@ -64,6 +71,9 @@ router.get("/members/me", requireAuth, async (request, response, next) => {
         profilePictureUrl: membersTable.profilePictureUrl,
         themePreference: membersTable.themePreference,
         primaryColor: membersTable.primaryColor,
+        accentColor: membersTable.accentColor,
+        profileBackgroundColor: membersTable.profileBackgroundColor,
+        profileWallpaperUrl: membersTable.profileWallpaperUrl,
         autoPostShares: membersTable.autoPostShares,
         preferredPostPlatforms: membersTable.preferredPostPlatforms,
         role: membersTable.role,
@@ -88,6 +98,19 @@ router.get("/members/me", requireAuth, async (request, response, next) => {
 router.patch("/members/me", requireAuth, async (request, response, next) => {
   try {
     const update = updateProfileSchema.parse(request.body);
+    if (
+      update.profileWallpaperUrl &&
+      !isMemberProfileWallpaperUrl(
+        update.profileWallpaperUrl,
+        request.user!.id,
+      )
+    ) {
+      throw new HttpError(
+        400,
+        "Choose a wallpaper uploaded from your profile settings.",
+      );
+    }
+
     const [member] = await db
       .update(membersTable)
       .set({
@@ -106,6 +129,9 @@ router.patch("/members/me", requireAuth, async (request, response, next) => {
         profilePictureUrl: membersTable.profilePictureUrl,
         themePreference: membersTable.themePreference,
         primaryColor: membersTable.primaryColor,
+        accentColor: membersTable.accentColor,
+        profileBackgroundColor: membersTable.profileBackgroundColor,
+        profileWallpaperUrl: membersTable.profileWallpaperUrl,
         autoPostShares: membersTable.autoPostShares,
         preferredPostPlatforms: membersTable.preferredPostPlatforms,
         role: membersTable.role,
@@ -139,7 +165,10 @@ router.get("/members/:id", requireAuth, async (request, response, next) => {
         company: membersTable.company,
         bio: membersTable.bio,
         profilePictureUrl: membersTable.profilePictureUrl,
-        themePreference: membersTable.themePreference,
+        primaryColor: membersTable.primaryColor,
+        accentColor: membersTable.accentColor,
+        profileBackgroundColor: membersTable.profileBackgroundColor,
+        profileWallpaperUrl: membersTable.profileWallpaperUrl,
       })
       .from(membersTable)
       .where(

@@ -19,6 +19,12 @@ export interface MemberUpdate {
   themePreference?: MemberUpdateThemePreference;
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   primaryColor?: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accentColor?: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  profileBackgroundColor?: string;
+  /** @nullable */
+  profileWallpaperUrl?: string | null;
   autoPostShares?: boolean;
   /** @maxItems 3 */
   preferredPostPlatforms?: SocialPlatform[];

@@ -127,6 +127,10 @@ export interface Member {
   profilePictureUrl?: string | null;
   themePreference: MemberThemePreference;
   primaryColor: string;
+  accentColor: string;
+  profileBackgroundColor: string;
+  /** @nullable */
+  profileWallpaperUrl?: string | null;
   autoPostShares: boolean;
   preferredPostPlatforms: SocialPlatform[];
   role: MemberRole;
@@ -154,6 +158,12 @@ export interface MemberUpdate {
   themePreference?: MemberUpdateThemePreference;
   /** @pattern ^#[0-9A-Fa-f]{6}$ */
   primaryColor?: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  accentColor?: string;
+  /** @pattern ^#[0-9A-Fa-f]{6}$ */
+  profileBackgroundColor?: string;
+  /** @nullable */
+  profileWallpaperUrl?: string | null;
   autoPostShares?: boolean;
   /** @maxItems 3 */
   preferredPostPlatforms?: SocialPlatform[];
@@ -176,14 +186,6 @@ export interface MemberList {
   members: MemberSummary[];
 }
 
-export type PublicMemberThemePreference = typeof PublicMemberThemePreference[keyof typeof PublicMemberThemePreference];
-
-
-export const PublicMemberThemePreference = {
-  light: 'light',
-  dark: 'dark',
-} as const;
-
 export interface PublicMember {
   id: string;
   name: string;
@@ -193,7 +195,11 @@ export interface PublicMember {
   bio?: string | null;
   /** @nullable */
   profilePictureUrl?: string | null;
-  themePreference: PublicMemberThemePreference;
+  primaryColor: string;
+  accentColor: string;
+  profileBackgroundColor: string;
+  /** @nullable */
+  profileWallpaperUrl?: string | null;
 }
 
 export interface PublicMemberResponse {
@@ -346,6 +352,10 @@ export interface SharePreview {
 }
 
 export interface ImageUpload {
+  image: Blob;
+}
+
+export interface ProfileWallpaperUpload {
   image: Blob;
 }
 

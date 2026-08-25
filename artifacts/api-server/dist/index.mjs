@@ -73252,6 +73252,9 @@ var membersTable = pgTable(
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     themePreference: themePreferenceEnum("theme_preference").default("dark").notNull(),
     primaryColor: text("primary_color").default("#007BFF").notNull(),
+    accentColor: text("accent_color").default("#14B8A6").notNull(),
+    profileBackgroundColor: text("profile_background_color").default("#111827").notNull(),
+    profileWallpaperUrl: text("profile_wallpaper_url"),
     autoPostShares: boolean("auto_post_shares").default(false).notNull(),
     preferredPostPlatforms: socialPlatformEnum("preferred_post_platforms").array().default(sql`ARRAY[]::social_platform[]`).notNull(),
     role: memberRoleEnum("role").default("member").notNull(),
@@ -80760,6 +80763,9 @@ var GetCurrentMemberResponse = objectType({
     "profilePictureUrl": stringType().url().nullish(),
     "themePreference": enumType(["light", "dark"]),
     "primaryColor": stringType(),
+    "accentColor": stringType(),
+    "profileBackgroundColor": stringType(),
+    "profileWallpaperUrl": stringType().url().nullish(),
     "autoPostShares": booleanType(),
     "preferredPostPlatforms": arrayType(enumType(["facebook", "linkedin", "instagram"])),
     "role": enumType(["member", "admin", "super_admin"]),
@@ -80769,6 +80775,8 @@ var GetCurrentMemberResponse = objectType({
   })
 });
 var updateCurrentMemberBodyPrimaryColorRegExp = new RegExp("^#[0-9A-Fa-f]{6}$");
+var updateCurrentMemberBodyAccentColorRegExp = new RegExp("^#[0-9A-Fa-f]{6}$");
+var updateCurrentMemberBodyProfileBackgroundColorRegExp = new RegExp("^#[0-9A-Fa-f]{6}$");
 var updateCurrentMemberBodyPreferredPostPlatformsMax = 3;
 var UpdateCurrentMemberBody = objectType({
   "name": stringType().optional(),
@@ -80778,6 +80786,9 @@ var UpdateCurrentMemberBody = objectType({
   "profilePictureUrl": stringType().url().nullish(),
   "themePreference": enumType(["light", "dark"]).optional(),
   "primaryColor": stringType().regex(updateCurrentMemberBodyPrimaryColorRegExp).optional(),
+  "accentColor": stringType().regex(updateCurrentMemberBodyAccentColorRegExp).optional(),
+  "profileBackgroundColor": stringType().regex(updateCurrentMemberBodyProfileBackgroundColorRegExp).optional(),
+  "profileWallpaperUrl": stringType().url().nullish(),
   "autoPostShares": booleanType().optional(),
   "preferredPostPlatforms": arrayType(enumType(["facebook", "linkedin", "instagram"])).max(updateCurrentMemberBodyPreferredPostPlatformsMax).optional()
 });
@@ -80793,6 +80804,9 @@ var UpdateCurrentMemberResponse = objectType({
     "profilePictureUrl": stringType().url().nullish(),
     "themePreference": enumType(["light", "dark"]),
     "primaryColor": stringType(),
+    "accentColor": stringType(),
+    "profileBackgroundColor": stringType(),
+    "profileWallpaperUrl": stringType().url().nullish(),
     "autoPostShares": booleanType(),
     "preferredPostPlatforms": arrayType(enumType(["facebook", "linkedin", "instagram"])),
     "role": enumType(["member", "admin", "super_admin"]),
@@ -80818,7 +80832,10 @@ var GetMemberResponse = objectType({
     "company": stringType(),
     "bio": stringType().nullish(),
     "profilePictureUrl": stringType().url().nullish(),
-    "themePreference": enumType(["light", "dark"])
+    "primaryColor": stringType(),
+    "accentColor": stringType(),
+    "profileBackgroundColor": stringType(),
+    "profileWallpaperUrl": stringType().url().nullish()
   })
 });
 var listMemberPostsResponsePostsItemImagesItemPositionMin = 0;
@@ -80991,6 +81008,14 @@ var UploadImageBody = objectType({
   "image": instanceOfType(File)
 });
 var UploadImageResponse = objectType({
+  "url": stringType().url(),
+  "size": numberType().int(),
+  "format": stringType()
+});
+var UploadProfileWallpaperBody = objectType({
+  "image": instanceOfType(File)
+});
+var UploadProfileWallpaperResponse = objectType({
   "url": stringType().url(),
   "size": numberType().int(),
   "format": stringType()
@@ -81360,6 +81385,88 @@ var health_default = router8;
 
 // src/routes/members.ts
 var import_express9 = __toESM(require_express2(), 1);
+
+// src/lib/r2.ts
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+var r2Client;
+function requireEnvironmentVariable(name) {
+  const value = process.env[name]?.trim();
+  if (!value) {
+    throw new HttpError(
+      500,
+      `R2 storage is not configured: ${name} is missing.`
+    );
+  }
+  return value;
+}
+function getR2Config() {
+  const publicUrl = requireEnvironmentVariable("R2_PUBLIC_URL");
+  try {
+    const parsedPublicUrl = new URL(publicUrl);
+    if (!["http:", "https:"].includes(parsedPublicUrl.protocol)) {
+      throw new Error("Unsupported URL protocol.");
+    }
+  } catch {
+    throw new HttpError(
+      500,
+      "R2 storage is not configured: R2_PUBLIC_URL must be a valid HTTP URL."
+    );
+  }
+  return {
+    accountId: requireEnvironmentVariable("CLOUDFLARE_ACCOUNT_ID"),
+    accessKeyId: requireEnvironmentVariable("R2_ACCESS_KEY_ID"),
+    secretAccessKey: requireEnvironmentVariable("R2_SECRET_ACCESS_KEY"),
+    bucketName: requireEnvironmentVariable("R2_BUCKET_NAME"),
+    publicUrl
+  };
+}
+function getR2Client(config2) {
+  r2Client ??= new S3Client({
+    region: "auto",
+    endpoint: `https://${config2.accountId}.r2.cloudflarestorage.com`,
+    credentials: {
+      accessKeyId: config2.accessKeyId,
+      secretAccessKey: config2.secretAccessKey
+    }
+  });
+  return r2Client;
+}
+function buildPublicUrl(baseUrl, key) {
+  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
+  const encodedKey = key.split("/").map(encodeURIComponent).join("/");
+  return new URL(encodedKey, normalizedBaseUrl).toString();
+}
+function isMemberProfileWallpaperUrl(wallpaperUrl, memberId) {
+  try {
+    const config2 = getR2Config();
+    const publicBaseUrl = new URL(config2.publicUrl);
+    const candidateUrl = new URL(wallpaperUrl);
+    const normalizedBasePath = publicBaseUrl.pathname.endsWith("/") ? publicBaseUrl.pathname : `${publicBaseUrl.pathname}/`;
+    const expectedPathPrefix = `${normalizedBasePath}profile-wallpapers/${encodeURIComponent(memberId)}/`;
+    return candidateUrl.origin === publicBaseUrl.origin && candidateUrl.pathname.startsWith(expectedPathPrefix) && !candidateUrl.search && !candidateUrl.hash;
+  } catch {
+    return false;
+  }
+}
+async function uploadObjectToR2({
+  key,
+  body,
+  contentType
+}) {
+  const config2 = getR2Config();
+  await getR2Client(config2).send(
+    new PutObjectCommand({
+      Bucket: config2.bucketName,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+      CacheControl: "public, max-age=31536000, immutable"
+    })
+  );
+  return buildPublicUrl(config2.publicUrl, key);
+}
+
+// src/routes/members.ts
 var router9 = (0, import_express9.Router)();
 var memberIdSchema = external_exports.string().uuid();
 var socialPlatformSchema = external_exports.enum(["facebook", "linkedin", "instagram"]);
@@ -81371,6 +81478,9 @@ var updateProfileSchema = external_exports.object({
   profilePictureUrl: external_exports.string().url().max(2048).nullable().optional(),
   themePreference: external_exports.enum(["light", "dark"]).optional(),
   primaryColor: external_exports.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  accentColor: external_exports.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  profileBackgroundColor: external_exports.string().regex(/^#[0-9A-Fa-f]{6}$/).optional(),
+  profileWallpaperUrl: external_exports.string().url().max(2048).nullable().optional(),
   autoPostShares: external_exports.boolean().optional(),
   preferredPostPlatforms: external_exports.array(socialPlatformSchema).max(3).optional()
 }).refine((value) => Object.keys(value).length > 0, {
@@ -81408,6 +81518,9 @@ router9.get("/members/me", requireAuth, async (request, response, next) => {
       profilePictureUrl: membersTable.profilePictureUrl,
       themePreference: membersTable.themePreference,
       primaryColor: membersTable.primaryColor,
+      accentColor: membersTable.accentColor,
+      profileBackgroundColor: membersTable.profileBackgroundColor,
+      profileWallpaperUrl: membersTable.profileWallpaperUrl,
       autoPostShares: membersTable.autoPostShares,
       preferredPostPlatforms: membersTable.preferredPostPlatforms,
       role: membersTable.role,
@@ -81426,6 +81539,15 @@ router9.get("/members/me", requireAuth, async (request, response, next) => {
 router9.patch("/members/me", requireAuth, async (request, response, next) => {
   try {
     const update = updateProfileSchema.parse(request.body);
+    if (update.profileWallpaperUrl && !isMemberProfileWallpaperUrl(
+      update.profileWallpaperUrl,
+      request.user.id
+    )) {
+      throw new HttpError(
+        400,
+        "Choose a wallpaper uploaded from your profile settings."
+      );
+    }
     const [member] = await db.update(membersTable).set({
       ...update,
       updatedAt: /* @__PURE__ */ new Date()
@@ -81440,6 +81562,9 @@ router9.patch("/members/me", requireAuth, async (request, response, next) => {
       profilePictureUrl: membersTable.profilePictureUrl,
       themePreference: membersTable.themePreference,
       primaryColor: membersTable.primaryColor,
+      accentColor: membersTable.accentColor,
+      profileBackgroundColor: membersTable.profileBackgroundColor,
+      profileWallpaperUrl: membersTable.profileWallpaperUrl,
       autoPostShares: membersTable.autoPostShares,
       preferredPostPlatforms: membersTable.preferredPostPlatforms,
       role: membersTable.role,
@@ -81468,7 +81593,10 @@ router9.get("/members/:id", requireAuth, async (request, response, next) => {
       company: membersTable.company,
       bio: membersTable.bio,
       profilePictureUrl: membersTable.profilePictureUrl,
-      themePreference: membersTable.themePreference
+      primaryColor: membersTable.primaryColor,
+      accentColor: membersTable.accentColor,
+      profileBackgroundColor: membersTable.profileBackgroundColor,
+      profileWallpaperUrl: membersTable.profileWallpaperUrl
     }).from(membersTable).where(
       and(
         eq(membersTable.id, memberId.data),
@@ -83607,76 +83735,6 @@ var import_express13 = __toESM(require_express2(), 1);
 var import_multer = __toESM(require_multer(), 1);
 import { randomUUID } from "node:crypto";
 import sharp from "sharp";
-
-// src/lib/r2.ts
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-var r2Client;
-function requireEnvironmentVariable(name) {
-  const value = process.env[name]?.trim();
-  if (!value) {
-    throw new HttpError(
-      500,
-      `R2 storage is not configured: ${name} is missing.`
-    );
-  }
-  return value;
-}
-function getR2Config() {
-  const publicUrl = requireEnvironmentVariable("R2_PUBLIC_URL");
-  try {
-    const parsedPublicUrl = new URL(publicUrl);
-    if (!["http:", "https:"].includes(parsedPublicUrl.protocol)) {
-      throw new Error("Unsupported URL protocol.");
-    }
-  } catch {
-    throw new HttpError(
-      500,
-      "R2 storage is not configured: R2_PUBLIC_URL must be a valid HTTP URL."
-    );
-  }
-  return {
-    accountId: requireEnvironmentVariable("CLOUDFLARE_ACCOUNT_ID"),
-    accessKeyId: requireEnvironmentVariable("R2_ACCESS_KEY_ID"),
-    secretAccessKey: requireEnvironmentVariable("R2_SECRET_ACCESS_KEY"),
-    bucketName: requireEnvironmentVariable("R2_BUCKET_NAME"),
-    publicUrl
-  };
-}
-function getR2Client(config2) {
-  r2Client ??= new S3Client({
-    region: "auto",
-    endpoint: `https://${config2.accountId}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: config2.accessKeyId,
-      secretAccessKey: config2.secretAccessKey
-    }
-  });
-  return r2Client;
-}
-function buildPublicUrl(baseUrl, key) {
-  const normalizedBaseUrl = baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
-  const encodedKey = key.split("/").map(encodeURIComponent).join("/");
-  return new URL(encodedKey, normalizedBaseUrl).toString();
-}
-async function uploadObjectToR2({
-  key,
-  body,
-  contentType
-}) {
-  const config2 = getR2Config();
-  await getR2Client(config2).send(
-    new PutObjectCommand({
-      Bucket: config2.bucketName,
-      Key: key,
-      Body: body,
-      ContentType: contentType,
-      CacheControl: "public, max-age=31536000, immutable"
-    })
-  );
-  return buildPublicUrl(config2.publicUrl, key);
-}
-
-// src/routes/upload.ts
 var router13 = (0, import_express13.Router)();
 var fiveMegabytes = 5 * 1024 * 1024;
 var maxUploadBytes = fiveMegabytes - 1;
@@ -83685,27 +83743,31 @@ var maxConcurrentUploads = 2;
 var maxUploadsPerMinute = 10;
 var allowedMimeTypes = /* @__PURE__ */ new Set(["image/jpeg", "image/png", "image/gif"]);
 var allowedFormats = /* @__PURE__ */ new Set(["jpeg", "png", "gif"]);
+var wallpaperMimeTypes = /* @__PURE__ */ new Set(["image/jpeg", "image/png"]);
+var wallpaperFormats = /* @__PURE__ */ new Set(["jpeg", "png"]);
 var activeUploads = 0;
 var uploadRateWindows = /* @__PURE__ */ new Map();
 sharp.concurrency(1);
-var upload = (0, import_multer.default)({
-  storage: import_multer.default.memoryStorage(),
-  limits: {
-    files: 1,
-    fields: 0,
-    fileSize: maxUploadBytes,
-    fieldNameSize: 100,
-    fieldSize: 1024,
-    headerPairs: 20
-  },
-  fileFilter: (_request, file2, callback) => {
-    if (!allowedMimeTypes.has(file2.mimetype)) {
-      callback(new HttpError(415, "Only JPG, PNG, and GIF images are allowed."));
-      return;
+function createImageUpload(acceptedMimeTypes, acceptedTypeMessage) {
+  return (0, import_multer.default)({
+    storage: import_multer.default.memoryStorage(),
+    limits: {
+      files: 1,
+      fields: 0,
+      fileSize: maxUploadBytes,
+      fieldNameSize: 100,
+      fieldSize: 1024,
+      headerPairs: 20
+    },
+    fileFilter: (_request, file2, callback) => {
+      if (!acceptedMimeTypes.has(file2.mimetype)) {
+        callback(new HttpError(415, acceptedTypeMessage));
+        return;
+      }
+      callback(null, true);
     }
-    callback(null, true);
-  }
-});
+  });
+}
 var enforceUploadRateLimit = (request, response, next) => {
   const now = Date.now();
   for (const [memberId2, window2] of uploadRateWindows) {
@@ -83755,40 +83817,52 @@ var enforceUploadConcurrency = (_request, response, next) => {
   response.once("close", release);
   next();
 };
-var parseImageUpload = (request, response, next) => {
-  upload.single("image")(request, response, (error40) => {
-    if (error40 instanceof import_multer.default.MulterError) {
-      if (error40.code === "LIMIT_FILE_SIZE") {
-        next(new HttpError(413, "Images must be smaller than 5 MB."));
+function createImageParser(acceptedMimeTypes, acceptedTypeMessage) {
+  const upload = createImageUpload(acceptedMimeTypes, acceptedTypeMessage);
+  return (request, response, next) => {
+    upload.single("image")(request, response, (error40) => {
+      if (error40 instanceof import_multer.default.MulterError) {
+        if (error40.code === "LIMIT_FILE_SIZE") {
+          next(new HttpError(413, "Images must be smaller than 5 MB."));
+          return;
+        }
+        if (error40.code === "LIMIT_FIELD_COUNT") {
+          next(
+            new HttpError(
+              400,
+              'Only the multipart file field named "image" is allowed.'
+            )
+          );
+          return;
+        }
+        if (error40.code === "LIMIT_FILE_COUNT" || error40.code === "LIMIT_UNEXPECTED_FILE") {
+          next(new HttpError(400, "Upload exactly one image file."));
+          return;
+        }
+        next(new HttpError(400, "Invalid multipart image upload."));
         return;
       }
-      if (error40.code === "LIMIT_FIELD_COUNT") {
-        next(
-          new HttpError(
-            400,
-            'Only the multipart file field named "image" is allowed.'
-          )
-        );
-        return;
-      }
-      if (error40.code === "LIMIT_FILE_COUNT" || error40.code === "LIMIT_UNEXPECTED_FILE") {
-        next(new HttpError(400, "Upload exactly one image file."));
-        return;
-      }
-      next(new HttpError(400, "Invalid multipart image upload."));
-      return;
-    }
-    next(error40);
-  });
-};
-async function processImage(input) {
+      next(error40);
+    });
+  };
+}
+var parseImageUpload = createImageParser(
+  allowedMimeTypes,
+  "Only JPG, PNG, and GIF images are allowed."
+);
+var parseWallpaperUpload = createImageParser(
+  wallpaperMimeTypes,
+  "Only JPG and PNG wallpapers are allowed."
+);
+async function processImage(input, options) {
   try {
     const metadata = await sharp(input, {
       pages: 1,
       limitInputPixels: false
     }).metadata();
-    if (!metadata.format || !allowedFormats.has(metadata.format)) {
-      throw new HttpError(415, "Only JPG, PNG, and GIF images are allowed.");
+    const format = metadata.format;
+    if (!format || !options.acceptedFormats.has(format)) {
+      throw new HttpError(415, options.acceptedTypeMessage);
     }
     const decodedWidth = metadata.width;
     const decodedHeight = metadata.pageHeight ?? metadata.height;
@@ -83799,14 +83873,14 @@ async function processImage(input) {
       pages: 1,
       limitInputPixels: maxDecodedPixels
     }).rotate().resize({
-      width: 800,
-      height: 800,
+      width: options.width,
+      height: options.height,
       withoutEnlargement: true,
       fit: "inside"
     });
-    if (metadata.format === "jpeg") {
+    if (format === "jpeg") {
       pipeline = pipeline.jpeg({ quality: 85, mozjpeg: true });
-    } else if (metadata.format === "png") {
+    } else if (format === "png") {
       pipeline = pipeline.png({ compressionLevel: 9 });
     } else {
       pipeline = pipeline.gif({ effort: 3 });
@@ -83818,7 +83892,7 @@ async function processImage(input) {
         "The processed image must be smaller than 5 MB."
       );
     }
-    if (metadata.format === "jpeg") {
+    if (format === "jpeg") {
       return {
         buffer,
         extension: "jpg",
@@ -83826,7 +83900,7 @@ async function processImage(input) {
         contentType: "image/jpeg"
       };
     }
-    if (metadata.format === "png") {
+    if (format === "png") {
       return {
         buffer,
         extension: "png",
@@ -83846,7 +83920,7 @@ async function processImage(input) {
     }
     throw new HttpError(
       415,
-      "The uploaded file is not a valid JPG, PNG, or GIF image."
+      options.acceptedTypeMessage
     );
   }
 }
@@ -83864,8 +83938,60 @@ router13.post(
           'Attach an image using the multipart field named "image".'
         );
       }
-      const image = await processImage(request.file.buffer);
+      const image = await processImage(request.file.buffer, {
+        acceptedFormats: allowedFormats,
+        acceptedTypeMessage: "Only JPG, PNG, and GIF images are allowed.",
+        width: 800,
+        height: 800
+      });
       const key = `images/${randomUUID()}.${image.extension}`;
+      let url2;
+      try {
+        url2 = await uploadObjectToR2({
+          key,
+          body: image.buffer,
+          contentType: image.contentType
+        });
+      } catch (error40) {
+        if (error40 instanceof HttpError) {
+          throw error40;
+        }
+        throw new HttpError(
+          502,
+          "Image storage is unavailable. Please try again."
+        );
+      }
+      response.status(201).json({
+        url: url2,
+        size: image.buffer.byteLength,
+        format: image.format
+      });
+    } catch (error40) {
+      next(error40);
+    }
+  }
+);
+router13.post(
+  "/upload/profile-wallpaper",
+  requireAuth,
+  enforceUploadRateLimit,
+  enforceUploadConcurrency,
+  parseWallpaperUpload,
+  async (request, response, next) => {
+    try {
+      if (!request.file) {
+        throw new HttpError(
+          400,
+          'Attach a wallpaper using the multipart field named "image".'
+        );
+      }
+      const image = await processImage(request.file.buffer, {
+        acceptedFormats: wallpaperFormats,
+        acceptedTypeMessage: "Only JPG and PNG wallpapers are allowed.",
+        width: 1600,
+        height: 900
+      });
+      const key = `profile-wallpapers/${request.user.id}/${randomUUID()}.${image.extension}`;
       let url2;
       try {
         url2 = await uploadObjectToR2({

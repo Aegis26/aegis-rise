@@ -65,6 +65,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [memberData, token, setAuth]);
 
+  useEffect(() => {
+    if (!memberData?.member) {
+      return;
+    }
+
+    document.documentElement.classList.toggle(
+      "dark",
+      memberData.member.themePreference === "dark",
+    );
+  }, [memberData?.member?.themePreference]);
+
   if (!token) return null;
 
   if (isLoading && !memberData) {

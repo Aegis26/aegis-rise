@@ -1,7 +1,7 @@
 - [Drizzle migrations](drizzle-migrations.md) — keep migration output relative and initialize the Drizzle journal before first generation.
 - [Password auth rollout](auth-rollout.md) — legacy members need a secure credential-setup path, not only a nullable hash migration.
 - [Image upload safety](image-upload-safety.md) — keep untrusted image work bounded; animated GIFs are flattened to a first frame before storage.
-- [Share preview integrity](share-preview-integrity.md) — preserve mandatory attribution, links, and hashtags under platform length limits.
+- [Share preview integrity](share-preview-integrity.md) — external share copy is only the member’s original trimmed caption.
 - [Chapter rename isolation](chapter-rename-isolation.md) — serialize every chapter-scoped write with rename; reserve old names so mutable labels cannot cross tenant boundaries.
 - [OAuth preview hosts](social-oauth-preview-hosts.md) — development previews use dynamic Replit hosts; reserve APP_BASE_URL for production callback construction.
 - [LinkedIn OAuth scopes](linkedin-oauth-scopes.md) — standard LinkedIn apps use OIDC plus member sharing scopes; do not request offline_access without partner approval.
@@ -10,3 +10,4 @@
 - [Facebook Page publishing](facebook-mvp-permissions.md) — connected Facebook Pages use Meta’s business login configuration and approved Page permissions.
 - [Instagram MVP permissions](instagram-mvp-permissions.md) — Instagram is basic authentication only in Phase 1; defer professional-account access and publishing.
 - [Railway deployment topology](railway-deployment-topology.md) — deploy web and API together on one origin to preserve relative API calls and OAuth callbacks.
+- [Profile wallpaper security](profile-wallpaper-security.md) — public wallpapers must be validated, member-owned storage assets; keep public profiles on a presentation-only allowlist.

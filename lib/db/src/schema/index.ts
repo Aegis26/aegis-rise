@@ -79,6 +79,11 @@ export const membersTable = pgTable(
       .default("dark")
       .notNull(),
     primaryColor: text("primary_color").default("#007BFF").notNull(),
+    accentColor: text("accent_color").default("#14B8A6").notNull(),
+    profileBackgroundColor: text("profile_background_color")
+      .default("#111827")
+      .notNull(),
+    profileWallpaperUrl: text("profile_wallpaper_url"),
     autoPostShares: boolean("auto_post_shares").default(false).notNull(),
     preferredPostPlatforms: socialPlatformEnum("preferred_post_platforms")
       .array()

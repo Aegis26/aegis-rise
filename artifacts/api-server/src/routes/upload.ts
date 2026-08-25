@@ -12,8 +12,12 @@ const maxUploadBytes = fiveMegabytes - 1;
 const maxDecodedPixels = 16_000_000;
 const maxConcurrentUploads = 2;
 const maxUploadsPerMinute = 10;
+type SupportedImageFormat = "jpeg" | "png" | "gif";
+
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/gif"]);
-const allowedFormats = new Set(["jpeg", "png", "gif"]);
+const allowedFormats = new Set<SupportedImageFormat>(["jpeg", "png", "gif"]);
+const wallpaperMimeTypes = new Set(["image/jpeg", "image/png"]);
+const wallpaperFormats = new Set<SupportedImageFormat>(["jpeg", "png"]);
 let activeUploads = 0;
 
 interface UploadRateWindow {
@@ -25,25 +29,30 @@ const uploadRateWindows = new Map<string, UploadRateWindow>();
 
 sharp.concurrency(1);
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: {
-    files: 1,
-    fields: 0,
-    fileSize: maxUploadBytes,
-    fieldNameSize: 100,
-    fieldSize: 1_024,
-    headerPairs: 20,
-  },
-  fileFilter: (_request, file, callback) => {
-    if (!allowedMimeTypes.has(file.mimetype)) {
-      callback(new HttpError(415, "Only JPG, PNG, and GIF images are allowed."));
-      return;
-    }
+function createImageUpload(
+  acceptedMimeTypes: Set<string>,
+  acceptedTypeMessage: string,
+) {
+  return multer({
+    storage: multer.memoryStorage(),
+    limits: {
+      files: 1,
+      fields: 0,
+      fileSize: maxUploadBytes,
+      fieldNameSize: 100,
+      fieldSize: 1_024,
+      headerPairs: 20,
+    },
+    fileFilter: (_request, file, callback) => {
+      if (!acceptedMimeTypes.has(file.mimetype)) {
+        callback(new HttpError(415, acceptedTypeMessage));
+        return;
+      }
 
-    callback(null, true);
-  },
-});
+      callback(null, true);
+    },
+  });
+}
 
 const enforceUploadRateLimit: RequestHandler = (request, response, next) => {
   const now = Date.now();
@@ -107,39 +116,55 @@ const enforceUploadConcurrency: RequestHandler = (
   next();
 };
 
-const parseImageUpload: RequestHandler = (request, response, next) => {
-  upload.single("image")(request, response, (error) => {
-    if (error instanceof multer.MulterError) {
-      if (error.code === "LIMIT_FILE_SIZE") {
-        next(new HttpError(413, "Images must be smaller than 5 MB."));
+function createImageParser(
+  acceptedMimeTypes: Set<string>,
+  acceptedTypeMessage: string,
+): RequestHandler {
+  const upload = createImageUpload(acceptedMimeTypes, acceptedTypeMessage);
+
+  return (request, response, next) => {
+    upload.single("image")(request, response, (error) => {
+      if (error instanceof multer.MulterError) {
+        if (error.code === "LIMIT_FILE_SIZE") {
+          next(new HttpError(413, "Images must be smaller than 5 MB."));
+          return;
+        }
+
+        if (error.code === "LIMIT_FIELD_COUNT") {
+          next(
+            new HttpError(
+              400,
+              'Only the multipart file field named "image" is allowed.',
+            ),
+          );
+          return;
+        }
+
+        if (
+          error.code === "LIMIT_FILE_COUNT" ||
+          error.code === "LIMIT_UNEXPECTED_FILE"
+        ) {
+          next(new HttpError(400, "Upload exactly one image file."));
+          return;
+        }
+
+        next(new HttpError(400, "Invalid multipart image upload."));
         return;
       }
 
-      if (error.code === "LIMIT_FIELD_COUNT") {
-        next(
-          new HttpError(
-            400,
-            'Only the multipart file field named "image" is allowed.',
-          ),
-        );
-        return;
-      }
+      next(error);
+    });
+  };
+}
 
-      if (
-        error.code === "LIMIT_FILE_COUNT" ||
-        error.code === "LIMIT_UNEXPECTED_FILE"
-      ) {
-        next(new HttpError(400, "Upload exactly one image file."));
-        return;
-      }
-
-      next(new HttpError(400, "Invalid multipart image upload."));
-      return;
-    }
-
-    next(error);
-  });
-};
+const parseImageUpload = createImageParser(
+  allowedMimeTypes,
+  "Only JPG, PNG, and GIF images are allowed.",
+);
+const parseWallpaperUpload = createImageParser(
+  wallpaperMimeTypes,
+  "Only JPG and PNG wallpapers are allowed.",
+);
 
 interface ProcessedImage {
   buffer: Buffer;
@@ -148,15 +173,26 @@ interface ProcessedImage {
   contentType: "image/jpeg" | "image/png" | "image/gif";
 }
 
-async function processImage(input: Buffer): Promise<ProcessedImage> {
+interface ImageProcessingOptions {
+  acceptedFormats: Set<SupportedImageFormat>;
+  acceptedTypeMessage: string;
+  width: number;
+  height: number;
+}
+
+async function processImage(
+  input: Buffer,
+  options: ImageProcessingOptions,
+): Promise<ProcessedImage> {
   try {
     const metadata = await sharp(input, {
       pages: 1,
       limitInputPixels: false,
     }).metadata();
 
-    if (!metadata.format || !allowedFormats.has(metadata.format)) {
-      throw new HttpError(415, "Only JPG, PNG, and GIF images are allowed.");
+    const format = metadata.format as SupportedImageFormat | undefined;
+    if (!format || !options.acceptedFormats.has(format)) {
+      throw new HttpError(415, options.acceptedTypeMessage);
     }
 
     const decodedWidth = metadata.width;
@@ -175,15 +211,15 @@ async function processImage(input: Buffer): Promise<ProcessedImage> {
     })
       .rotate()
       .resize({
-        width: 800,
-        height: 800,
+        width: options.width,
+        height: options.height,
         withoutEnlargement: true,
         fit: "inside",
       });
 
-    if (metadata.format === "jpeg") {
+    if (format === "jpeg") {
       pipeline = pipeline.jpeg({ quality: 85, mozjpeg: true });
-    } else if (metadata.format === "png") {
+    } else if (format === "png") {
       pipeline = pipeline.png({ compressionLevel: 9 });
     } else {
       // Multi-frame GIFs are intentionally flattened to their first frame so a
@@ -199,7 +235,7 @@ async function processImage(input: Buffer): Promise<ProcessedImage> {
       );
     }
 
-    if (metadata.format === "jpeg") {
+    if (format === "jpeg") {
       return {
         buffer,
         extension: "jpg",
@@ -208,7 +244,7 @@ async function processImage(input: Buffer): Promise<ProcessedImage> {
       };
     }
 
-    if (metadata.format === "png") {
+    if (format === "png") {
       return {
         buffer,
         extension: "png",
@@ -230,7 +266,7 @@ async function processImage(input: Buffer): Promise<ProcessedImage> {
 
     throw new HttpError(
       415,
-      "The uploaded file is not a valid JPG, PNG, or GIF image.",
+      options.acceptedTypeMessage,
     );
   }
 }
@@ -250,8 +286,65 @@ router.post(
         );
       }
 
-      const image = await processImage(request.file.buffer);
+      const image = await processImage(request.file.buffer, {
+        acceptedFormats: allowedFormats,
+        acceptedTypeMessage: "Only JPG, PNG, and GIF images are allowed.",
+        width: 800,
+        height: 800,
+      });
       const key = `images/${randomUUID()}.${image.extension}`;
+      let url: string;
+
+      try {
+        url = await uploadObjectToR2({
+          key,
+          body: image.buffer,
+          contentType: image.contentType,
+        });
+      } catch (error) {
+        if (error instanceof HttpError) {
+          throw error;
+        }
+
+        throw new HttpError(
+          502,
+          "Image storage is unavailable. Please try again.",
+        );
+      }
+
+      response.status(201).json({
+        url,
+        size: image.buffer.byteLength,
+        format: image.format,
+      });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.post(
+  "/upload/profile-wallpaper",
+  requireAuth,
+  enforceUploadRateLimit,
+  enforceUploadConcurrency,
+  parseWallpaperUpload,
+  async (request, response, next) => {
+    try {
+      if (!request.file) {
+        throw new HttpError(
+          400,
+          'Attach a wallpaper using the multipart field named "image".',
+        );
+      }
+
+      const image = await processImage(request.file.buffer, {
+        acceptedFormats: wallpaperFormats,
+        acceptedTypeMessage: "Only JPG and PNG wallpapers are allowed.",
+        width: 1_600,
+        height: 900,
+      });
+      const key = `profile-wallpapers/${request.user!.id}/${randomUUID()}.${image.extension}`;
       let url: string;
 
       try {

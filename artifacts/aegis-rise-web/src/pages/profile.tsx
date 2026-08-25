@@ -6,6 +6,7 @@ import {
   useGetCurrentMember, 
   useUpdateCurrentMember,
   useUploadImage,
+  useUploadProfileWallpaper,
   useListMemberPosts,
   useListSocialAccounts,
   useCreateSocialConnection,
@@ -36,6 +37,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { PostGallery } from "@/components/feed/post-gallery";
+import { ProfileHero } from "./components/profile-hero";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -44,6 +46,8 @@ const profileSchema = z.object({
   bio: z.string().optional().nullable(),
   themePreference: z.enum(["light", "dark"]),
   primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code"),
+  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code").optional().default("#00aaff"),
+  profileBackgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code").optional().default("#0a0a0a"),
   autoPostShares: z.boolean(),
   preferredPostPlatforms: z.array(z.enum(["facebook", "linkedin", "instagram"])),
 });
@@ -84,6 +88,15 @@ const COLOR_PRESETS = [
   { name: "Cyber Green", value: "#00ff66" },
   { name: "Sunset Orange", value: "#ff5e00" },
   { name: "Crimson Red", value: "#ff003c" },
+  { name: "Goldenrod", value: "#ffb700" },
+];
+
+const BACKGROUND_PRESETS = [
+  { name: "Deep Space", value: "#0a0a0a" },
+  { name: "Midnight Blue", value: "#050b14" },
+  { name: "Dark Purple", value: "#120a1f" },
+  { name: "Crimson Void", value: "#140505" },
+  { name: "Forest Shadow", value: "#051408" },
 ];
 
 export default function Profile() {
@@ -93,6 +106,12 @@ export default function Profile() {
   const [connectingPlatform, setConnectingPlatform] =
     useState<SocialPlatform | null>(null);
   const profileImageInput = useRef<HTMLInputElement>(null);
+  const wallpaperImageInput = useRef<HTMLInputElement>(null);
+  const [wallpaperFile, setWallpaperFile] = useState<File | null>(null);
+  const [wallpaperPreviewUrl, setWallpaperPreviewUrl] = useState<string | null>(
+    null,
+  );
+  const [removeWallpaper, setRemoveWallpaper] = useState(false);
 
   const { data: memberData, isLoading } = useGetCurrentMember({
     query: {
@@ -112,6 +131,8 @@ export default function Profile() {
       bio: "",
       themePreference: "dark",
       primaryColor: "#00aaff",
+      accentColor: "#00aaff",
+      profileBackgroundColor: "#0a0a0a",
       autoPostShares: false,
       preferredPostPlatforms: [],
     },
@@ -132,11 +153,28 @@ export default function Profile() {
         bio: memberData.member.bio || "",
         themePreference: memberData.member.themePreference as any || "dark",
         primaryColor: memberData.member.primaryColor || "#00aaff",
+        accentColor: memberData.member.accentColor || memberData.member.primaryColor,
+        profileBackgroundColor: memberData.member.profileBackgroundColor || "#0a0a0a",
         autoPostShares: memberData.member.autoPostShares,
         preferredPostPlatforms: memberData.member.preferredPostPlatforms,
       });
+      // reset wallpaper tracking on load
+      setWallpaperFile(null);
+      setRemoveWallpaper(false);
     }
   }, [memberData, form]);
+
+  useEffect(() => {
+    if (!wallpaperFile) {
+      setWallpaperPreviewUrl(null);
+      return;
+    }
+
+    const previewUrl = URL.createObjectURL(wallpaperFile);
+    setWallpaperPreviewUrl(previewUrl);
+
+    return () => URL.revokeObjectURL(previewUrl);
+  }, [wallpaperFile]);
 
   const updateMutation = useUpdateCurrentMember({
     mutation: {
@@ -231,8 +269,33 @@ export default function Profile() {
     },
   });
 
-  const onSubmit = (data: ProfileFormValues) => {
-    updateMutation.mutate({ data });
+  const uploadWallpaperMutation = useUploadProfileWallpaper();
+
+  const onSubmit = async (data: ProfileFormValues) => {
+    let finalWallpaperUrl = memberData?.member.profileWallpaperUrl;
+
+    try {
+      if (wallpaperFile) {
+        const res = await uploadWallpaperMutation.mutateAsync({ data: { image: wallpaperFile } });
+        finalWallpaperUrl = res.url;
+      } else if (removeWallpaper) {
+        finalWallpaperUrl = null;
+      }
+
+      await updateMutation.mutateAsync({
+        data: {
+          ...data,
+          profileWallpaperUrl: finalWallpaperUrl,
+        },
+      });
+
+      if (wallpaperFile || removeWallpaper) {
+        setWallpaperFile(null);
+        setRemoveWallpaper(false);
+      }
+    } catch (err: any) {
+      toast({ title: "Failed to upload wallpaper", description: err.message, variant: "destructive" });
+    }
   };
   const startSocialConnection = (platform: SocialPlatform) => {
     setConnectingPlatform(platform);
@@ -278,6 +341,20 @@ export default function Profile() {
       .map((account) => account.platform),
   );
 
+  const watchPrimaryColor = form.watch("primaryColor");
+  const watchAccentColor = form.watch("accentColor");
+  const watchBackgroundColor = form.watch("profileBackgroundColor");
+  const watchName = form.watch("name");
+  const watchTitle = form.watch("title");
+  const watchCompany = form.watch("company");
+  const watchBio = form.watch("bio");
+
+  const wallpaperUrlForPreview = wallpaperPreviewUrl
+    ? wallpaperPreviewUrl
+    : removeWallpaper
+      ? null
+      : member?.profileWallpaperUrl;
+
   return (
     <div className="max-w-4xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-8">
       <div>
@@ -285,27 +362,78 @@ export default function Profile() {
         <p className="text-muted-foreground mt-2">Manage your public presence and personal preferences.</p>
       </div>
 
+      <div className="w-full">
+        <h2 className="text-lg font-medium mb-3">Live Profile Preview</h2>
+        <ProfileHero
+          member={{
+            name: watchName || member?.name,
+            title: watchTitle || member?.title,
+            company: watchCompany || member?.company,
+            bio: watchBio !== undefined ? watchBio : member?.bio,
+            profilePictureUrl: member?.profilePictureUrl,
+          }}
+          primaryColor={watchPrimaryColor}
+          accentColor={watchAccentColor}
+          backgroundColor={watchBackgroundColor}
+          wallpaperUrl={wallpaperUrlForPreview}
+        />
+        <div className="flex gap-2 mt-4 justify-end">
+          <input
+            ref={profileImageInput}
+            className="hidden"
+            type="file"
+            accept="image/*"
+            data-testid="input-profile-picture"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) uploadProfileImage.mutate({ data: { image: file } });
+            }}
+          />
+          <Button variant="outline" size="sm" onClick={() => profileImageInput.current?.click()} disabled={uploadProfileImage.isPending} data-testid="button-upload-profile-picture">
+            {uploadProfileImage.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
+            Update Photo
+          </Button>
+
+          <input
+            ref={wallpaperImageInput}
+            className="hidden"
+            type="file"
+            accept="image/jpeg,image/png"
+            data-testid="input-profile-wallpaper"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                setWallpaperFile(file);
+                setRemoveWallpaper(false);
+              }
+            }}
+          />
+          <Button variant="outline" size="sm" onClick={() => wallpaperImageInput.current?.click()} data-testid="button-upload-wallpaper">
+            <ImagePlus className="mr-2 h-4 w-4" />
+            Upload Wallpaper
+          </Button>
+          {wallpaperUrlForPreview && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => {
+                setWallpaperFile(null);
+                setRemoveWallpaper(true);
+              }}
+              data-testid="button-remove-wallpaper"
+            >
+              Remove
+            </Button>
+          )}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6">
           <Card>
             <CardContent className="p-6 flex flex-col items-center text-center">
-              <Avatar className="h-32 w-32 mb-4 border-4 border-card ring-2 ring-primary/20">
-                <AvatarImage src={member?.profilePictureUrl || ""} alt={member?.name} />
-                <AvatarFallback className="text-4xl bg-primary/10 text-primary">{member?.name?.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <h3 className="text-xl font-bold font-display">{member?.name}</h3>
-              <p className="text-primary font-medium text-sm mb-1">{member?.title}</p>
-              <p className="text-muted-foreground text-sm">{member?.company}</p>
-               <input ref={profileImageInput} className="hidden" type="file" accept="image/*" data-testid="input-profile-picture" onChange={(event) => {
-                 const file = event.target.files?.[0];
-                 if (file) uploadProfileImage.mutate({ data: { image: file } });
-               }} />
-               <Button variant="outline" size="sm" className="mt-4" onClick={() => profileImageInput.current?.click()} disabled={uploadProfileImage.isPending} data-testid="button-upload-profile-picture">
-                 {uploadProfileImage.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-                 Update photo
-               </Button>
-              
-              <div className="w-full mt-6 pt-6 border-t border-border flex flex-col gap-2 text-sm text-left">
+              <div className="w-full pt-2 flex flex-col gap-2 text-sm text-left">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Chapter</span>
                   <span className="font-medium">{member?.chapter}</span>
@@ -569,9 +697,11 @@ export default function Profile() {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Palette className="h-5 w-5 text-primary" />
-                    Preferences
+                    Appearance & Customization
                   </CardTitle>
-                  <CardDescription>Customize your app experience.</CardDescription>
+                  <CardDescription>
+                    Set the look of your profile and the interface you use to manage it.
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <FormField
@@ -610,51 +740,151 @@ export default function Profile() {
                     )}
                   />
 
-                  <FormField
-                    control={form.control}
-                    name="primaryColor"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Identity Color</FormLabel>
-                        <FormDescription>Choose a color that represents you on your profile.</FormDescription>
-                        <FormControl>
-                          <div className="flex flex-col gap-3 mt-2">
-                            <div className="flex gap-3">
-                              {COLOR_PRESETS.map((color) => (
-                                <button
-                                  key={color.value}
-                                  type="button"
-                                  className={`w-8 h-8 rounded-full border-2 transition-all ${field.value === color.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-110'}`}
-                                  style={{ backgroundColor: color.value }}
-                                  onClick={() => field.onChange(color.value)}
-                                  title={color.name}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <FormField
+                      control={form.control}
+                      name="primaryColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Identity Color</FormLabel>
+                          <FormDescription>Your main identity color.</FormDescription>
+                          <FormControl>
+                            <div className="flex flex-col gap-3 mt-2">
+                              <div className="flex flex-wrap gap-2">
+                                {COLOR_PRESETS.map((color) => (
+                                  <button
+                                    key={color.value}
+                                    type="button"
+                                    className={`w-6 h-6 rounded-full border-2 transition-all ${field.value === color.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-110'}`}
+                                    style={{ backgroundColor: color.value }}
+                                    onClick={() => field.onChange(color.value)}
+                                    title={color.name}
+                                    data-testid={`button-profile-identity-color-${color.value.slice(1)}`}
+                                  />
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Input
+                                  type="color"
+                                  className="w-12 h-10 p-1 cursor-pointer"
+                                  data-testid="input-profile-identity-color-picker"
+                                  {...field}
                                 />
-                              ))}
+                                <Input
+                                  type="text"
+                                  className="flex-1 uppercase font-mono text-sm"
+                                  data-testid="input-profile-identity-color"
+                                  {...field}
+                                  onChange={(e) => {
+                                    let val = e.target.value;
+                                    if (val.length > 0 && !val.startsWith('#')) val = '#' + val;
+                                    field.onChange(val);
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <div className="flex items-center gap-3">
-                              <Input 
-                                type="color" 
-                                className="w-12 h-10 p-1 cursor-pointer" 
-                                {...field} 
-                              />
-                              <Input 
-                                type="text" 
-                                className="w-32 uppercase font-mono text-sm" 
-                                {...field}
-                                onChange={(e) => {
-                                  // Auto-prefix with # if missing
-                                  let val = e.target.value;
-                                  if (val.length > 0 && !val.startsWith('#')) val = '#' + val;
-                                  field.onChange(val);
-                                }}
-                              />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="accentColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Accent Color</FormLabel>
+                          <FormDescription>Secondary glow and highlights.</FormDescription>
+                          <FormControl>
+                            <div className="flex flex-col gap-3 mt-2">
+                              <div className="flex flex-wrap gap-2">
+                                {COLOR_PRESETS.map((color) => (
+                                  <button
+                                    key={color.value}
+                                    type="button"
+                                    className={`w-6 h-6 rounded-full border-2 transition-all ${field.value === color.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-110'}`}
+                                    style={{ backgroundColor: color.value }}
+                                    onClick={() => field.onChange(color.value)}
+                                    title={color.name}
+                                    data-testid={`button-profile-accent-color-${color.value.slice(1)}`}
+                                  />
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Input
+                                  type="color"
+                                  className="w-12 h-10 p-1 cursor-pointer"
+                                  data-testid="input-profile-accent-color-picker"
+                                  {...field}
+                                />
+                                <Input
+                                  type="text"
+                                  className="flex-1 uppercase font-mono text-sm"
+                                  data-testid="input-profile-accent-color"
+                                  {...field}
+                                  onChange={(e) => {
+                                    let val = e.target.value;
+                                    if (val.length > 0 && !val.startsWith('#')) val = '#' + val;
+                                    field.onChange(val);
+                                  }}
+                                />
+                              </div>
                             </div>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="profileBackgroundColor"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Profile Background</FormLabel>
+                          <FormDescription>Base background color for your hero.</FormDescription>
+                          <FormControl>
+                            <div className="flex flex-col gap-3 mt-2">
+                              <div className="flex flex-wrap gap-2">
+                                {BACKGROUND_PRESETS.map((color) => (
+                                  <button
+                                    key={color.value}
+                                    type="button"
+                                    className={`w-6 h-6 rounded-full border-2 transition-all ${field.value === color.value ? 'border-foreground scale-110' : 'border-transparent hover:scale-110'}`}
+                                    style={{ backgroundColor: color.value }}
+                                    onClick={() => field.onChange(color.value)}
+                                    title={color.name}
+                                    data-testid={`button-profile-background-color-${color.value.slice(1)}`}
+                                  />
+                                ))}
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <Input
+                                  type="color"
+                                  className="w-12 h-10 p-1 cursor-pointer"
+                                  data-testid="input-profile-background-color-picker"
+                                  {...field}
+                                />
+                                <Input
+                                  type="text"
+                                  className="flex-1 uppercase font-mono text-sm"
+                                  data-testid="input-profile-background-color"
+                                  {...field}
+                                  onChange={(e) => {
+                                    let val = e.target.value;
+                                    if (val.length > 0 && !val.startsWith('#')) val = '#' + val;
+                                    field.onChange(val);
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </CardContent>
               </Card>
 
@@ -662,11 +892,11 @@ export default function Profile() {
                 <Button 
                   type="submit" 
                   size="lg" 
-                  disabled={updateMutation.isPending || !form.formState.isDirty}
+                  disabled={updateMutation.isPending || uploadWallpaperMutation.isPending || (!form.formState.isDirty && !wallpaperFile && !removeWallpaper)}
                   data-testid="button-save-profile"
                   className={isSaved ? "bg-green-600 hover:bg-green-700 text-white" : ""}
                 >
-                  {updateMutation.isPending ? (
+                  {(updateMutation.isPending || uploadWallpaperMutation.isPending) ? (
                     <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   ) : isSaved ? (
                     <CheckCircle2 className="mr-2 h-5 w-5" />

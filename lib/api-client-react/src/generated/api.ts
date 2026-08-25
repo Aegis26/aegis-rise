@@ -66,6 +66,7 @@ import type {
   PostAnalyticsResult,
   PostInput,
   PostResponse,
+  ProfileWallpaperUpload,
   PublicMemberResponse,
   RedirectToSocialProviderParams,
   SettingsResult,
@@ -1822,6 +1823,73 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUploadImageMutationOptions(options));
+    }
+
+export const getUploadProfileWallpaperUrl = () => {
+
+
+
+
+  return `/api/upload/profile-wallpaper`
+}
+
+export const uploadProfileWallpaper = async (profileWallpaperUpload: ProfileWallpaperUpload, options?: Parameters<typeof customFetch>[1]): Promise<ImageUploadResult> => {
+    const formData = new FormData();
+formData.append(`image`, profileWallpaperUpload.image);
+
+  return customFetch<ImageUploadResult>(getUploadProfileWallpaperUrl(),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadProfileWallpaperMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadProfileWallpaper>>, TError,{data: BodyType<ProfileWallpaperUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadProfileWallpaper>>, TError,{data: BodyType<ProfileWallpaperUpload>}, TContext> => {
+
+const mutationKey = ['uploadProfileWallpaper'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadProfileWallpaper>>, {data: BodyType<ProfileWallpaperUpload>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  uploadProfileWallpaper(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadProfileWallpaperMutationResult = NonNullable<Awaited<ReturnType<typeof uploadProfileWallpaper>>>
+    export type UploadProfileWallpaperMutationBody = BodyType<ProfileWallpaperUpload>
+    export type UploadProfileWallpaperMutationError = ErrorType<unknown>
+
+    export const useUploadProfileWallpaper = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadProfileWallpaper>>, TError,{data: BodyType<ProfileWallpaperUpload>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadProfileWallpaper>>,
+        TError,
+        {data: BodyType<ProfileWallpaperUpload>},
+        TContext
+      > => {
+      return useMutation(getUploadProfileWallpaperMutationOptions(options));
     }
 
 export const getGetAdminOverviewUrl = (params?: GetAdminOverviewParams,) => {

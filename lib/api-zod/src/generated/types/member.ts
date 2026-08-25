@@ -23,6 +23,10 @@ export interface Member {
   profilePictureUrl?: string | null;
   themePreference: MemberThemePreference;
   primaryColor: string;
+  accentColor: string;
+  profileBackgroundColor: string;
+  /** @nullable */
+  profileWallpaperUrl?: string | null;
   autoPostShares: boolean;
   preferredPostPlatforms: SocialPlatform[];
   role: MemberRole;

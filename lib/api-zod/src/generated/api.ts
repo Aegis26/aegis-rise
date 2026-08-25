@@ -118,6 +118,9 @@ export const GetCurrentMemberResponse = zod.object({
   "profilePictureUrl": zod.string().url().nullish(),
   "themePreference": zod.enum(['light', 'dark']),
   "primaryColor": zod.string(),
+  "accentColor": zod.string(),
+  "profileBackgroundColor": zod.string(),
+  "profileWallpaperUrl": zod.string().url().nullish(),
   "autoPostShares": zod.boolean(),
   "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])),
   "role": zod.enum(['member', 'admin', 'super_admin']),
@@ -129,6 +132,8 @@ export const GetCurrentMemberResponse = zod.object({
 
 
 export const updateCurrentMemberBodyPrimaryColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateCurrentMemberBodyAccentColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
+export const updateCurrentMemberBodyProfileBackgroundColorRegExp = new RegExp('^#[0-9A-Fa-f]{6}$');
 export const updateCurrentMemberBodyPreferredPostPlatformsMax = 3;
 
 
@@ -141,6 +146,9 @@ export const UpdateCurrentMemberBody = zod.object({
   "profilePictureUrl": zod.string().url().nullish(),
   "themePreference": zod.enum(['light', 'dark']).optional(),
   "primaryColor": zod.string().regex(updateCurrentMemberBodyPrimaryColorRegExp).optional(),
+  "accentColor": zod.string().regex(updateCurrentMemberBodyAccentColorRegExp).optional(),
+  "profileBackgroundColor": zod.string().regex(updateCurrentMemberBodyProfileBackgroundColorRegExp).optional(),
+  "profileWallpaperUrl": zod.string().url().nullish(),
   "autoPostShares": zod.boolean().optional(),
   "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])).max(updateCurrentMemberBodyPreferredPostPlatformsMax).optional()
 })
@@ -157,6 +165,9 @@ export const UpdateCurrentMemberResponse = zod.object({
   "profilePictureUrl": zod.string().url().nullish(),
   "themePreference": zod.enum(['light', 'dark']),
   "primaryColor": zod.string(),
+  "accentColor": zod.string(),
+  "profileBackgroundColor": zod.string(),
+  "profileWallpaperUrl": zod.string().url().nullish(),
   "autoPostShares": zod.boolean(),
   "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])),
   "role": zod.enum(['member', 'admin', 'super_admin']),
@@ -186,7 +197,10 @@ export const GetMemberResponse = zod.object({
   "company": zod.string(),
   "bio": zod.string().nullish(),
   "profilePictureUrl": zod.string().url().nullish(),
-  "themePreference": zod.enum(['light', 'dark'])
+  "primaryColor": zod.string(),
+  "accentColor": zod.string(),
+  "profileBackgroundColor": zod.string(),
+  "profileWallpaperUrl": zod.string().url().nullish()
 })
 })
 
@@ -400,6 +414,17 @@ export const UploadImageBody = zod.object({
 })
 
 export const UploadImageResponse = zod.object({
+  "url": zod.string().url(),
+  "size": zod.number().int(),
+  "format": zod.string()
+})
+
+
+export const UploadProfileWallpaperBody = zod.object({
+  "image": zod.instanceof(File)
+})
+
+export const UploadProfileWallpaperResponse = zod.object({
   "url": zod.string().url(),
   "size": zod.number().int(),
   "format": zod.string()

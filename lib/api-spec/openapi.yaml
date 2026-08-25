@@ -374,6 +374,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImageUploadResult"
+  /upload/profile-wallpaper:
+    post:
+      operationId: uploadProfileWallpaper
+      tags: [uploads]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/ProfileWallpaperUpload"
+      responses:
+        "201":
+          description: Processed JPG or PNG profile wallpaper uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageUploadResult"
   /admin/analytics/overview:
     get:
       operationId: getAdminOverview
@@ -818,7 +836,7 @@ components:
         status: { type: string, enum: [pending, active, banned] }
     Member:
       type: object
-      required: [id, email, name, title, company, chapter, themePreference, primaryColor, autoPostShares, preferredPostPlatforms, role, status, createdAt, updatedAt]
+      required: [id, email, name, title, company, chapter, themePreference, primaryColor, accentColor, profileBackgroundColor, autoPostShares, preferredPostPlatforms, role, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -830,6 +848,9 @@ components:
         profilePictureUrl: { type: [string, "null"], format: uri }
         themePreference: { type: string, enum: [light, dark] }
         primaryColor: { type: string }
+        accentColor: { type: string }
+        profileBackgroundColor: { type: string }
+        profileWallpaperUrl: { type: [string, "null"], format: uri }
         autoPostShares: { type: boolean }
         preferredPostPlatforms:
           type: array
@@ -848,6 +869,9 @@ components:
         profilePictureUrl: { type: [string, "null"], format: uri }
         themePreference: { type: string, enum: [light, dark] }
         primaryColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        accentColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        profileBackgroundColor: { type: string, pattern: "^#[0-9A-Fa-f]{6}$" }
+        profileWallpaperUrl: { type: [string, "null"], format: uri }
         autoPostShares: { type: boolean }
         preferredPostPlatforms:
           type: array
@@ -875,7 +899,7 @@ components:
           items: { $ref: "#/components/schemas/MemberSummary" }
     PublicMember:
       type: object
-      required: [id, name, title, company, themePreference]
+      required: [id, name, title, company, primaryColor, accentColor, profileBackgroundColor]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -883,7 +907,10 @@ components:
         company: { type: string }
         bio: { type: [string, "null"] }
         profilePictureUrl: { type: [string, "null"], format: uri }
-        themePreference: { type: string, enum: [light, dark] }
+        primaryColor: { type: string }
+        accentColor: { type: string }
+        profileBackgroundColor: { type: string }
+        profileWallpaperUrl: { type: [string, "null"], format: uri }
     PublicMemberResponse:
       type: object
       required: [member]
@@ -1022,6 +1049,11 @@ components:
           items: { type: string }
         note: { type: string }
     ImageUpload:
+      type: object
+      required: [image]
+      properties:
+        image: { type: string, format: binary }
+    ProfileWallpaperUpload:
       type: object
       required: [image]
       properties:

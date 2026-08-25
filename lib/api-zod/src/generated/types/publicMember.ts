@@ -5,7 +5,6 @@
  * Aegis Rise member, social feed, and chapter administration API.
  * OpenAPI spec version: 0.1.0
  */
-import type { PublicMemberThemePreference } from './publicMemberThemePreference';
 
 export interface PublicMember {
   id: string;
@@ -16,5 +15,9 @@ export interface PublicMember {
   bio?: string | null;
   /** @nullable */
   profilePictureUrl?: string | null;
-  themePreference: PublicMemberThemePreference;
+  primaryColor: string;
+  accentColor: string;
+  profileBackgroundColor: string;
+  /** @nullable */
+  profileWallpaperUrl?: string | null;
 }

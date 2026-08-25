@@ -74,6 +74,30 @@ function buildPublicUrl(baseUrl: string, key: string): string {
   return new URL(encodedKey, normalizedBaseUrl).toString();
 }
 
+export function isMemberProfileWallpaperUrl(
+  wallpaperUrl: string,
+  memberId: string,
+): boolean {
+  try {
+    const config = getR2Config();
+    const publicBaseUrl = new URL(config.publicUrl);
+    const candidateUrl = new URL(wallpaperUrl);
+    const normalizedBasePath = publicBaseUrl.pathname.endsWith("/")
+      ? publicBaseUrl.pathname
+      : `${publicBaseUrl.pathname}/`;
+    const expectedPathPrefix = `${normalizedBasePath}profile-wallpapers/${encodeURIComponent(memberId)}/`;
+
+    return (
+      candidateUrl.origin === publicBaseUrl.origin &&
+      candidateUrl.pathname.startsWith(expectedPathPrefix) &&
+      !candidateUrl.search &&
+      !candidateUrl.hash
+    );
+  } catch {
+    return false;
+  }
+}
+
 export async function uploadObjectToR2({
   key,
   body,
