@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { 
@@ -382,7 +382,51 @@ export default function Profile() {
           wallpaperUrl={wallpaperUrlForPreview}
           wallpaperScale={watchWallpaperScale}
         />
-        <div className="flex gap-2 mt-4 justify-end">
+        <Controller
+          control={form.control}
+          name="profileWallpaperScale"
+          render={({ field }) => (
+            <div
+              className="mt-2 flex flex-col gap-2 rounded-lg border border-border/80 bg-card/70 p-3 sm:flex-row sm:items-center"
+              data-testid="profile-wallpaper-scale-control"
+            >
+              <input
+                {...field}
+                id="profile-wallpaper-scale"
+                type="range"
+                min={50}
+                max={200}
+                step={5}
+                value={field.value ?? 100}
+                onChange={(event) => field.onChange(Number(event.target.value))}
+                aria-label="Wallpaper size"
+                className="mt-3 h-2 w-full cursor-pointer accent-primary"
+                data-testid="input-profile-wallpaper-scale"
+              />
+              <div className="flex items-center justify-between gap-3 sm:order-2 sm:min-w-36">
+                <div>
+                  <label
+                    htmlFor="profile-wallpaper-scale"
+                    className="text-sm font-medium"
+                  >
+                    Wallpaper Size
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Resize inside the frame
+                  </p>
+                </div>
+                <output
+                  htmlFor="profile-wallpaper-scale"
+                  className="min-w-14 rounded-md bg-muted px-2 py-1 text-right text-sm font-mono"
+                  data-testid="text-profile-wallpaper-scale"
+                >
+                  {field.value ?? 100}%
+                </output>
+              </div>
+            </div>
+          )}
+        />
+        <div className="mt-4 flex flex-wrap gap-2 justify-end">
           <input
             ref={profileImageInput}
             className="hidden"
@@ -890,50 +934,6 @@ export default function Profile() {
                       )}
                     />
                   </div>
-                  <FormField
-                    control={form.control}
-                    name="profileWallpaperScale"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center justify-between gap-4">
-                          <div>
-                            <FormLabel>Wallpaper Size</FormLabel>
-                            <FormDescription>
-                              Make the wallpaper smaller or zoom in for a closer crop.
-                            </FormDescription>
-                          </div>
-                          <span
-                            className="min-w-14 rounded-md bg-muted px-2 py-1 text-right text-sm font-mono"
-                            data-testid="text-profile-wallpaper-scale"
-                          >
-                            {field.value ?? 100}%
-                          </span>
-                        </div>
-                        <FormControl>
-                          <input
-                            {...field}
-                            type="range"
-                            min={50}
-                            max={200}
-                            step={5}
-                            value={field.value ?? 100}
-                            onChange={(event) =>
-                              field.onChange(Number(event.target.value))
-                            }
-                            aria-label="Wallpaper size"
-                            className="mt-3 h-2 w-full cursor-pointer accent-primary"
-                            data-testid="input-profile-wallpaper-scale"
-                          />
-                        </FormControl>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Smaller</span>
-                          <span>Default 100%</span>
-                          <span>Larger</span>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
                 </CardContent>
               </Card>
 

@@ -35,17 +35,22 @@ export function ProfileHero({
       style={{ backgroundColor: bg }}
       data-testid="profile-hero"
     >
-      {/* Background Layer with Wallpaper */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700 ease-in-out"
-        style={{ 
-          backgroundImage: wallpaperUrl ? `url(${wallpaperUrl})` : 'none',
-          opacity: wallpaperUrl ? 0.35 : 0,
-          mixBlendMode: 'luminosity',
-          transform: `scale(${scale / 100})`,
-          transformOrigin: "center",
-        }}
-      />
+      {/* Wallpaper image stays inside the fixed hero frame while it scales. */}
+      {wallpaperUrl && (
+        <img
+          src={wallpaperUrl}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-700 ease-in-out"
+          style={{
+            opacity: 0.35,
+            mixBlendMode: "luminosity",
+            transform: `scale(${scale / 100})`,
+            transformOrigin: "center",
+          }}
+          data-testid="profile-hero-wallpaper"
+        />
+      )}
       {/* Gradient to darken the bottom for text readability */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
       {/* Accent glow in the corner */}
