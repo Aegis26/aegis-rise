@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Link, useLocation } from "wouter";
 import { 
   useGetCurrentMember, 
   useUpdateCurrentMember,
@@ -16,7 +17,7 @@ import {
   getListSocialAccountsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug } from "lucide-react";
+import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug, Settings } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -103,6 +104,8 @@ const BACKGROUND_PRESETS = [
 export default function Profile() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [location] = useLocation();
+  const isProfileSettings = location === "/profile/settings";
   const [isSaved, setIsSaved] = useState(false);
   const [connectingPlatform, setConnectingPlatform] =
     useState<SocialPlatform | null>(null);
@@ -361,11 +364,62 @@ export default function Profile() {
 
   return (
     <div className="max-w-4xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-8">
-      <div>
-        <h1 className="text-3xl font-display font-bold">My Profile</h1>
-        <p className="text-muted-foreground mt-2">Manage your public presence and personal preferences.</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-display font-bold">
+            {isProfileSettings ? "Profile Settings" : "My Profile"}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            {isProfileSettings
+              ? "Customize how your profile looks to other members."
+              : "Manage your public presence and personal preferences."}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={profileImageInput}
+            className="hidden"
+            type="file"
+            accept="image/*"
+            data-testid="input-profile-picture"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) uploadProfileImage.mutate({ data: { image: file } });
+            }}
+          />
+          {!isProfileSettings && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => profileImageInput.current?.click()}
+              disabled={uploadProfileImage.isPending}
+              data-testid="button-upload-profile-picture"
+            >
+              {uploadProfileImage.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ImagePlus className="mr-2 h-4 w-4" />
+              )}
+              Update Photo
+            </Button>
+          )}
+          <Button variant="outline" size="sm" asChild>
+            <Link
+              href={isProfileSettings ? "/profile" : "/profile/settings"}
+              data-testid={
+                isProfileSettings
+                  ? "link-back-to-profile"
+                  : "link-profile-settings"
+              }
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              {isProfileSettings ? "Back to Profile" : "Profile Settings"}
+            </Link>
+          </Button>
+        </div>
       </div>
 
+      {isProfileSettings && (
       <div className="w-full">
         <h2 className="text-lg font-medium mb-3">Live Profile Preview</h2>
         <ProfileHero
@@ -428,22 +482,6 @@ export default function Profile() {
         />
         <div className="mt-4 flex flex-wrap gap-2 justify-end">
           <input
-            ref={profileImageInput}
-            className="hidden"
-            type="file"
-            accept="image/*"
-            data-testid="input-profile-picture"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) uploadProfileImage.mutate({ data: { image: file } });
-            }}
-          />
-          <Button variant="outline" size="sm" onClick={() => profileImageInput.current?.click()} disabled={uploadProfileImage.isPending} data-testid="button-upload-profile-picture">
-            {uploadProfileImage.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ImagePlus className="mr-2 h-4 w-4" />}
-            Update Photo
-          </Button>
-
-          <input
             ref={wallpaperImageInput}
             className="hidden"
             type="file"
@@ -477,6 +515,7 @@ export default function Profile() {
           )}
         </div>
       </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6">
@@ -508,6 +547,7 @@ export default function Profile() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               
+              {!isProfileSettings && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -741,7 +781,9 @@ export default function Profile() {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
+              {isProfileSettings && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -936,6 +978,7 @@ export default function Profile() {
                   </div>
                 </CardContent>
               </Card>
+              )}
 
               <div className="flex justify-end pt-4">
                 <Button 
@@ -959,16 +1002,18 @@ export default function Profile() {
           </Form>
         </div>
       </div>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />My recent posts</CardTitle>
-          <CardDescription>Your latest contributions to the chapter feed.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {posts.slice(0, 5).map((post) => <div key={post.id} className="rounded-md border border-border p-3"><p className="whitespace-pre-wrap">{post.caption}</p><PostGallery images={post.images} legacyImageUrl={post.imageUrl} /><p className="mt-2 text-xs text-muted-foreground">{post.shareCount} {post.shareCount === 1 ? "share" : "shares"}</p></div>)}
-          {!posts.length && <p className="text-sm text-muted-foreground">You have not shared a post with the chapter yet.</p>}
-        </CardContent>
-      </Card>
+      {!isProfileSettings && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5 text-primary" />My recent posts</CardTitle>
+            <CardDescription>Your latest contributions to the chapter feed.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {posts.slice(0, 5).map((post) => <div key={post.id} className="rounded-md border border-border p-3"><p className="whitespace-pre-wrap">{post.caption}</p><PostGallery images={post.images} legacyImageUrl={post.imageUrl} /><p className="mt-2 text-xs text-muted-foreground">{post.shareCount} {post.shareCount === 1 ? "share" : "shares"}</p></div>)}
+            {!posts.length && <p className="text-sm text-muted-foreground">You have not shared a post with the chapter yet.</p>}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

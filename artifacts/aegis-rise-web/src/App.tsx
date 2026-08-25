@@ -65,6 +65,9 @@ function Router() {
         <Route path="/feed">
           <ProtectedRoute component={Feed} />
         </Route>
+        <Route path="/profile/settings">
+          <ProtectedRoute component={Profile} />
+        </Route>
         <Route path="/profile">
           <ProtectedRoute component={Profile} />
         </Route>

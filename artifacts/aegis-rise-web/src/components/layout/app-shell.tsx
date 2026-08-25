@@ -173,6 +173,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <DropdownMenuItem asChild>
                 <Link href="/profile" className="cursor-pointer">Profile</Link>
               </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/profile/settings" className="cursor-pointer" data-testid="menu-profile-settings">
+                  <Settings className="h-4 w-4 mr-2" />
+                  Profile Settings
+                </Link>
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer" data-testid="button-logout">
                 <LogOut className="h-4 w-4 mr-2" />
                 Log out
