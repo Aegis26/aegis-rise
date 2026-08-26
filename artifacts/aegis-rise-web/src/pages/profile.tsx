@@ -376,33 +376,6 @@ export default function Profile() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <input
-            ref={profileImageInput}
-            className="hidden"
-            type="file"
-            accept="image/*"
-            data-testid="input-profile-picture"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) uploadProfileImage.mutate({ data: { image: file } });
-            }}
-          />
-          {!isProfileSettings && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => profileImageInput.current?.click()}
-              disabled={uploadProfileImage.isPending}
-              data-testid="button-upload-profile-picture"
-            >
-              {uploadProfileImage.isPending ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <ImagePlus className="mr-2 h-4 w-4" />
-              )}
-              Update Photo
-            </Button>
-          )}
           <Button variant="outline" size="sm" asChild>
             <Link
               href={isProfileSettings ? "/profile" : "/profile/settings"}
@@ -419,9 +392,10 @@ export default function Profile() {
         </div>
       </div>
 
-      {isProfileSettings && (
       <div className="w-full">
-        <h2 className="text-lg font-medium mb-3">Live Profile Preview</h2>
+        <h2 className="text-lg font-medium mb-3">
+          {isProfileSettings ? "Live Profile Preview" : "Profile Picture & Banner"}
+        </h2>
         <ProfileHero
           member={{
             name: watchName || member?.name,
@@ -436,51 +410,78 @@ export default function Profile() {
           wallpaperUrl={wallpaperUrlForPreview}
           wallpaperScale={watchWallpaperScale}
         />
-        <Controller
-          control={form.control}
-          name="profileWallpaperScale"
-          render={({ field }) => (
-            <div
-              className="mt-2 flex flex-col gap-2 rounded-lg border border-border/80 bg-card/70 p-3 sm:flex-row sm:items-center"
-              data-testid="profile-wallpaper-scale-control"
-            >
-              <input
-                {...field}
-                id="profile-wallpaper-scale"
-                type="range"
-                min={50}
-                max={200}
-                step={5}
-                value={field.value ?? 100}
-                onChange={(event) => field.onChange(Number(event.target.value))}
-                aria-label="Wallpaper size"
-                className="mt-3 h-2 w-full cursor-pointer accent-primary"
-                data-testid="input-profile-wallpaper-scale"
-              />
-              <div className="flex items-center justify-between gap-3 sm:order-2 sm:min-w-36">
-                <div>
-                  <label
+        {isProfileSettings && (
+          <Controller
+            control={form.control}
+            name="profileWallpaperScale"
+            render={({ field }) => (
+              <div
+                className="mt-2 flex flex-col gap-2 rounded-lg border border-border/80 bg-card/70 p-3 sm:flex-row sm:items-center"
+                data-testid="profile-wallpaper-scale-control"
+              >
+                <input
+                  {...field}
+                  id="profile-wallpaper-scale"
+                  type="range"
+                  min={50}
+                  max={200}
+                  step={5}
+                  value={field.value ?? 100}
+                  onChange={(event) => field.onChange(Number(event.target.value))}
+                  aria-label="Wallpaper size"
+                  className="mt-3 h-2 w-full cursor-pointer accent-primary"
+                  data-testid="input-profile-wallpaper-scale"
+                />
+                <div className="flex items-center justify-between gap-3 sm:order-2 sm:min-w-36">
+                  <div>
+                    <label
+                      htmlFor="profile-wallpaper-scale"
+                      className="text-sm font-medium"
+                    >
+                      Wallpaper Size
+                    </label>
+                    <p className="text-xs text-muted-foreground">
+                      Resize inside the frame
+                    </p>
+                  </div>
+                  <output
                     htmlFor="profile-wallpaper-scale"
-                    className="text-sm font-medium"
+                    className="min-w-14 rounded-md bg-muted px-2 py-1 text-right text-sm font-mono"
+                    data-testid="text-profile-wallpaper-scale"
                   >
-                    Wallpaper Size
-                  </label>
-                  <p className="text-xs text-muted-foreground">
-                    Resize inside the frame
-                  </p>
+                    {field.value ?? 100}%
+                  </output>
                 </div>
-                <output
-                  htmlFor="profile-wallpaper-scale"
-                  className="min-w-14 rounded-md bg-muted px-2 py-1 text-right text-sm font-mono"
-                  data-testid="text-profile-wallpaper-scale"
-                >
-                  {field.value ?? 100}%
-                </output>
               </div>
-            </div>
-          )}
-        />
+            )}
+          />
+        )}
         <div className="mt-4 flex flex-wrap gap-2 justify-end">
+          <input
+            ref={profileImageInput}
+            className="hidden"
+            type="file"
+            accept="image/*"
+            data-testid="input-profile-picture"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) uploadProfileImage.mutate({ data: { image: file } });
+            }}
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => profileImageInput.current?.click()}
+            disabled={uploadProfileImage.isPending}
+            data-testid="button-upload-profile-picture"
+          >
+            {uploadProfileImage.isPending ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <ImagePlus className="mr-2 h-4 w-4" />
+            )}
+            Update Photo
+          </Button>
           <input
             ref={wallpaperImageInput}
             className="hidden"
@@ -515,7 +516,6 @@ export default function Profile() {
           )}
         </div>
       </div>
-      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="md:col-span-1 space-y-6">
