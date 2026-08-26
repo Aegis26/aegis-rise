@@ -456,65 +456,67 @@ export default function Profile() {
             )}
           />
         )}
-        <div className="mt-4 flex flex-wrap gap-2 justify-end">
-          <input
-            ref={profileImageInput}
-            className="hidden"
-            type="file"
-            accept="image/*"
-            data-testid="input-profile-picture"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) uploadProfileImage.mutate({ data: { image: file } });
-            }}
-          />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => profileImageInput.current?.click()}
-            disabled={uploadProfileImage.isPending}
-            data-testid="button-upload-profile-picture"
-          >
-            {uploadProfileImage.isPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <ImagePlus className="mr-2 h-4 w-4" />
-            )}
-            Update Photo
-          </Button>
-          <input
-            ref={wallpaperImageInput}
-            className="hidden"
-            type="file"
-            accept="image/jpeg,image/png"
-            data-testid="input-profile-wallpaper"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) {
-                setWallpaperFile(file);
-                setRemoveWallpaper(false);
-              }
-            }}
-          />
-          <Button variant="outline" size="sm" onClick={() => wallpaperImageInput.current?.click()} data-testid="button-upload-wallpaper">
-            <ImagePlus className="mr-2 h-4 w-4" />
-            Upload Wallpaper
-          </Button>
-          {wallpaperUrlForPreview && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-              onClick={() => {
-                setWallpaperFile(null);
-                setRemoveWallpaper(true);
+        {isProfileSettings && (
+          <div className="mt-4 flex flex-wrap gap-2 justify-end">
+            <input
+              ref={profileImageInput}
+              className="hidden"
+              type="file"
+              accept="image/*"
+              data-testid="input-profile-picture"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) uploadProfileImage.mutate({ data: { image: file } });
               }}
-              data-testid="button-remove-wallpaper"
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => profileImageInput.current?.click()}
+              disabled={uploadProfileImage.isPending}
+              data-testid="button-upload-profile-picture"
             >
-              Remove
+              {uploadProfileImage.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <ImagePlus className="mr-2 h-4 w-4" />
+              )}
+              Update Photo
             </Button>
-          )}
-        </div>
+            <input
+              ref={wallpaperImageInput}
+              className="hidden"
+              type="file"
+              accept="image/jpeg,image/png"
+              data-testid="input-profile-wallpaper"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) {
+                  setWallpaperFile(file);
+                  setRemoveWallpaper(false);
+                }
+              }}
+            />
+            <Button variant="outline" size="sm" onClick={() => wallpaperImageInput.current?.click()} data-testid="button-upload-wallpaper">
+              <ImagePlus className="mr-2 h-4 w-4" />
+              Upload Wallpaper
+            </Button>
+            {wallpaperUrlForPreview && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => {
+                  setWallpaperFile(null);
+                  setRemoveWallpaper(true);
+                }}
+                data-testid="button-remove-wallpaper"
+              >
+                Remove
+              </Button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
