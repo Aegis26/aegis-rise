@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "PLxWtULvPkMVvkima7g1B"
+uri = "file://docs/aegis-rise-member-onboarding-guide.html"
+type = "text"
+title = "Aegis Rise — Member Onboarding Guide"
+description = "A step-by-step guide covering applying for access, chapter approval, first login, profile setup (photo, wallpaper, colors), connecting LinkedIn/Facebook/Instagram, and creating & sharing posts."
+logical_id = "9f25cfc6-f8f7-4924-8d4f-3b0d926cb484"
+content_hash = "sha256:d0eba07ed165fbe2b33334cce0db6dea348396a6033165557ed7b658db95616c"
+size = 190694
+mtime_ms = 1787764454253
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:9a6e0a74-6e19-4fd7-8992-b695c0f95e88/9f25cfc6-f8f7-4924-8d4f-3b0d926cb484/297c7ce4-6889-44c6-9042-e3ea5afe23d1"
+storage_version_token = "1787764466628015"
+content_type = "text/html"
