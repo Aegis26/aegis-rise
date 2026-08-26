@@ -105,7 +105,26 @@ if (serveWeb && !existsSync(webIndexPath)) {
 }
 
 if (serveWeb) {
-  app.use(express.static(webDistPath, { index: false }));
+  // Vite fingerprints everything under /assets with a content hash, so those
+  // files are safe to cache aggressively: a new deploy always ships new
+  // filenames. Everything else (index.html, favicon, robots.txt) keeps no
+  // more than the browser's default validation caching so a redeploy can
+  // never leave a client referencing assets that no longer exist on disk.
+  app.use(
+    "/assets",
+    express.static(path.join(webDistPath, "assets"), {
+      maxAge: "1y",
+      immutable: true,
+    }),
+  );
+  app.use(
+    express.static(webDistPath, {
+      index: false,
+      setHeaders: (response) => {
+        response.setHeader("Cache-Control", "no-cache");
+      },
+    }),
+  );
   app.use((request, response, next) => {
     if (
       request.method !== "GET" ||
@@ -116,6 +135,7 @@ if (serveWeb) {
       return;
     }
 
+    response.set("Cache-Control", "no-cache");
     response.sendFile(webIndexPath, (error) => {
       if (error) {
         next(error);
