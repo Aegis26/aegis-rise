@@ -722,6 +722,19 @@ export const BanMemberResponse = zod.object({
 })
 
 
+export const deleteMemberBodyReasonMax = 1000;
+
+
+
+export const DeleteMemberBody = zod.object({
+  "reason": zod.string().max(deleteMemberBodyReasonMax).optional()
+})
+
+export const DeleteMemberResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const GetMemberActivityResponse = zod.object({
   "activity": zod.object({
   "memberId": zod.string().uuid(),

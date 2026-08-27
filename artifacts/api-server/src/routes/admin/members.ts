@@ -106,7 +106,10 @@ function ensureMemberMutationAccess(
     throw new HttpError(403, "You cannot perform this action on yourself.");
   }
   if (options.blockSuperAdmin && target.role === "super_admin") {
-    throw new HttpError(403, "Super-admin accounts cannot be banned or denied.");
+    throw new HttpError(
+      403,
+      "Super-admin accounts cannot be banned, denied, or deleted.",
+    );
   }
 }
 
@@ -369,6 +372,50 @@ router.patch(
       });
 
       response.json({ member });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.delete(
+  "/admin/members/:id",
+  requireAdmin,
+  async (request, response, next) => {
+    try {
+      const memberId = parseAdminResourceId(request.params.id, "member");
+      const { reason } = optionalReasonBodySchema.parse(request.body ?? {});
+      const admin = request.user!;
+      const deletedMember = await db.transaction(async (transaction) => {
+        const target = await loadLockedManagedMember(
+          transaction,
+          memberId,
+          admin,
+          {
+            blockSelf: true,
+            blockSuperAdmin: true,
+          },
+        );
+
+        await transaction
+          .delete(membersTable)
+          .where(eq(membersTable.id, memberId));
+        await recordModAction(transaction, {
+          admin,
+          actionType: "delete_member",
+          targetType: "member",
+          targetId: target.id,
+          targetLabel: target.name,
+          chapter: target.chapter,
+          reason,
+        });
+
+        return target;
+      });
+
+      response.json({
+        message: `${deletedMember.name} was permanently deleted, along with their posts, shares, and social connections.`,
+      });
     } catch (error) {
       next(error);
     }

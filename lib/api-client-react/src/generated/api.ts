@@ -2597,6 +2597,72 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       return useMutation(getBanMemberMutationOptions(options));
     }
 
+export const getDeleteMemberUrl = (memberId: string,) => {
+
+
+
+
+  return `/api/admin/members/${memberId}`
+}
+
+export const deleteMember = async (memberId: string,
+    moderationReason?: ModerationReason, options?: Parameters<typeof customFetch>[1]): Promise<Message> => {
+
+  return customFetch<Message>(getDeleteMemberUrl(memberId),
+  {
+    ...options,
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(moderationReason)
+  }
+);}
+
+
+
+
+
+export const getDeleteMemberMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,{memberId: string;data?: BodyType<ModerationReason>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,{memberId: string;data?: BodyType<ModerationReason>}, TContext> => {
+
+const mutationKey = ['deleteMember'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMember>>, {memberId: string;data?: BodyType<ModerationReason>}> = (props) => {
+          const {memberId,data} = props ?? {};
+
+          return  deleteMember(memberId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteMemberMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMember>>>
+    export type DeleteMemberMutationBody = BodyType<ModerationReason> | undefined
+    export type DeleteMemberMutationError = ErrorType<unknown>
+
+    export const useDeleteMember = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMember>>, TError,{memberId: string;data?: BodyType<ModerationReason>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteMember>>,
+        TError,
+        {memberId: string;data?: BodyType<ModerationReason>},
+        TContext
+      > => {
+      return useMutation(getDeleteMemberMutationOptions(options));
+    }
+
 export const getGetMemberActivityUrl = (memberId: string,) => {
 
 

@@ -7,6 +7,7 @@ import {
   useApproveMember,
   useDenyMember,
   useBanMember,
+  useDeleteMember,
   useGetChapterSettings,
   useUpdateChapterSettings,
   useListAdminPosts,
@@ -41,6 +42,16 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Admin() {
   const { member } = useAuth();
@@ -264,6 +275,8 @@ function ApprovalsTab() {
 function MembersTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [memberPendingDeletion, setMemberPendingDeletion] = useState<{ id: string; name: string } | null>(null);
+  const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
 
   const { data: membersData, isLoading } = useListAdminMembers(undefined, {
     query: { queryKey: getListAdminMembersQueryKey() }
@@ -280,10 +293,28 @@ function MembersTab() {
     }
   });
 
+  const deleteMutation = useDeleteMember({
+    mutation: {
+      onSuccess: (result) => {
+        toast({ title: "Member deleted", description: result.message });
+        queryClient.invalidateQueries({ queryKey: getListAdminMembersQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getGetAdminOverviewQueryKey() });
+        setMemberPendingDeletion(null);
+        setDeleteConfirmationText("");
+      },
+      onError: (err: any) => toast({ title: "Failed to delete member", description: err.message, variant: "destructive" })
+    }
+  });
+
   const handleBan = (memberId: string) => {
     if (confirm("Are you sure you want to ban this member? This action is not easily reversible.")) {
       banMutation.mutate({ memberId, data: { reason: "Admin discretion." } });
     }
+  };
+
+  const handleConfirmDelete = () => {
+    if (!memberPendingDeletion) return;
+    deleteMutation.mutate({ memberId: memberPendingDeletion.id, data: { reason: "Admin discretion." } });
   };
 
   if (isLoading) {
@@ -335,18 +366,35 @@ function MembersTab() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {member.status !== "banned" && member.role !== "super_admin" && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8"
-                          onClick={() => handleBan(member.id)}
-                          disabled={banMutation.isPending}
-                          data-testid={`button-ban-${member.id}`}
-                        >
-                          Ban
-                        </Button>
-                      )}
+                      <div className="flex justify-end gap-2">
+                        {member.status !== "banned" && member.role !== "super_admin" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8"
+                            onClick={() => handleBan(member.id)}
+                            disabled={banMutation.isPending}
+                            data-testid={`button-ban-${member.id}`}
+                          >
+                            Ban
+                          </Button>
+                        )}
+                        {member.role !== "super_admin" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive h-8"
+                            onClick={() => {
+                              setMemberPendingDeletion({ id: member.id, name: member.name });
+                              setDeleteConfirmationText("");
+                            }}
+                            disabled={deleteMutation.isPending}
+                            data-testid={`button-delete-${member.id}`}
+                          >
+                            Delete
+                          </Button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -355,6 +403,50 @@ function MembersTab() {
           </div>
         )}
       </CardContent>
+
+      <AlertDialog
+        open={memberPendingDeletion !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMemberPendingDeletion(null);
+            setDeleteConfirmationText("");
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete {memberPendingDeletion?.name}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes the member's account, along with every post, share, and connected
+              social account they own. This cannot be undone. Type the member's name below to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            value={deleteConfirmationText}
+            onChange={(event) => setDeleteConfirmationText(event.target.value)}
+            placeholder={memberPendingDeletion?.name}
+            data-testid="input-delete-confirmation"
+            autoFocus
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={
+                deleteConfirmationText.trim() !== memberPendingDeletion?.name ||
+                deleteMutation.isPending
+              }
+              onClick={(event) => {
+                event.preventDefault();
+                handleConfirmDelete();
+              }}
+              data-testid="button-confirm-delete"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete permanently"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

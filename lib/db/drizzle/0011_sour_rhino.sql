@@ -1,0 +1,1 @@
+ALTER TYPE "public"."mod_action_type" ADD VALUE 'delete_member' BEFORE 'update_settings';

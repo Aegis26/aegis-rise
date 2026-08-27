@@ -565,6 +565,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MemberModerationResult"
+  /admin/members/{memberId}:
+    delete:
+      operationId: deleteMember
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModerationReason"
+      responses:
+        "200":
+          description: Member permanently deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
   /admin/members/{memberId}/activity:
     get:
       operationId: getMemberActivity
@@ -729,7 +749,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [delete_post, feature_post, unfeature_post, approve_member, deny_member, ban_member, update_settings, update_guidelines]
+            enum: [delete_post, feature_post, unfeature_post, approve_member, deny_member, ban_member, delete_member, update_settings, update_guidelines]
       responses:
         "200":
           description: Moderation audit history

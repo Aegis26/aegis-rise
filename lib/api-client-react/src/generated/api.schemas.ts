@@ -822,6 +822,7 @@ export const ListModerationLogsAction = {
   approve_member: 'approve_member',
   deny_member: 'deny_member',
   ban_member: 'ban_member',
+  delete_member: 'delete_member',
   update_settings: 'update_settings',
   update_guidelines: 'update_guidelines',
 } as const;
