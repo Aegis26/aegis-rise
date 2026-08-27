@@ -631,6 +631,15 @@ export const ListAdminMembersResponse = zod.object({
 })
 
 
+export const ListAdminChaptersResponse = zod.object({
+  "chapters": zod.array(zod.object({
+  "name": zod.string(),
+  "memberCount": zod.number().int(),
+  "pendingCount": zod.number().int()
+}))
+})
+
+
 export const ListPendingMembersResponse = zod.object({
   "members": zod.array(zod.object({
   "id": zod.string().uuid(),
@@ -732,6 +741,23 @@ export const DeleteMemberBody = zod.object({
 
 export const DeleteMemberResponse = zod.object({
   "message": zod.string()
+})
+
+
+export const UpdateMemberRoleBody = zod.object({
+  "role": zod.enum(['member', 'admin'])
+})
+
+export const UpdateMemberRoleResponse = zod.object({
+  "member": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "chapter": zod.string(),
+  "role": zod.enum(['member', 'admin']),
+  "status": zod.enum(['active']),
+  "updatedAt": zod.coerce.date()
+})
 })
 
 

@@ -13,6 +13,11 @@ export interface Message {
   message: string;
 }
 
+export interface ErrorResponse {
+  error: string;
+  message: string;
+}
+
 export interface Pagination {
   page: number;
   limit: number;
@@ -482,6 +487,57 @@ export interface AdminMemberList {
   pagination: Pagination;
 }
 
+export interface AdminChapter {
+  name: string;
+  memberCount: number;
+  pendingCount: number;
+}
+
+export interface AdminChapterList {
+  chapters: AdminChapter[];
+}
+
+export type AdminMemberRoleUpdateRole = typeof AdminMemberRoleUpdateRole[keyof typeof AdminMemberRoleUpdateRole];
+
+
+export const AdminMemberRoleUpdateRole = {
+  member: 'member',
+  admin: 'admin',
+} as const;
+
+export interface AdminMemberRoleUpdate {
+  role: AdminMemberRoleUpdateRole;
+}
+
+export type MemberRoleTargetRole = typeof MemberRoleTargetRole[keyof typeof MemberRoleTargetRole];
+
+
+export const MemberRoleTargetRole = {
+  member: 'member',
+  admin: 'admin',
+} as const;
+
+export type MemberRoleTargetStatus = typeof MemberRoleTargetStatus[keyof typeof MemberRoleTargetStatus];
+
+
+export const MemberRoleTargetStatus = {
+  active: 'active',
+} as const;
+
+export interface MemberRoleTarget {
+  id: string;
+  email: string;
+  name: string;
+  chapter: string;
+  role: MemberRoleTargetRole;
+  status: MemberRoleTargetStatus;
+  updatedAt: string;
+}
+
+export interface MemberRoleUpdateResult {
+  member: MemberRoleTarget;
+}
+
 export interface PendingMember {
   id: string;
   name: string;
@@ -823,6 +879,8 @@ export const ListModerationLogsAction = {
   deny_member: 'deny_member',
   ban_member: 'ban_member',
   delete_member: 'delete_member',
+  promote_admin: 'promote_admin',
+  demote_admin: 'demote_admin',
   update_settings: 'update_settings',
   update_guidelines: 'update_guidelines',
 } as const;

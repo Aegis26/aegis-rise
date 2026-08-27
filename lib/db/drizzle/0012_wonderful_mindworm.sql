@@ -1,0 +1,2 @@
+ALTER TYPE "public"."mod_action_type" ADD VALUE 'promote_admin' BEFORE 'update_settings';--> statement-breakpoint
+ALTER TYPE "public"."mod_action_type" ADD VALUE 'demote_admin' BEFORE 'update_settings';

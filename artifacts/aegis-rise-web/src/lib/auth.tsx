@@ -4,9 +4,11 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { setAuthTokenGetter, type AuthMember } from "@workspace/api-client-react";
 
 interface AuthContextType {
@@ -20,6 +22,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const [token, setTokenState] = useState<string | null>(() => {
     return localStorage.getItem("aegis_token");
   });
@@ -30,8 +33,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
 
   const [isLoading, setIsLoading] = useState(true);
+  const authBoundaryRef = useRef({
+    token,
+    memberId: member?.id ?? null,
+    role: member?.role ?? null,
+    status: member?.status ?? null,
+  });
 
   const setAuth = useCallback((newToken: string | null, newMember: AuthMember | null) => {
+    const nextBoundary = {
+      token: newToken,
+      memberId: newMember?.id ?? null,
+      role: newMember?.role ?? null,
+      status: newMember?.status ?? null,
+    };
+    const currentBoundary = authBoundaryRef.current;
+    const boundaryChanged =
+      currentBoundary.token !== nextBoundary.token ||
+      currentBoundary.memberId !== nextBoundary.memberId ||
+      currentBoundary.role !== nextBoundary.role ||
+      currentBoundary.status !== nextBoundary.status;
+
+    if (newToken) {
+      localStorage.setItem("aegis_token", newToken);
+      setAuthTokenGetter(() => newToken);
+    } else {
+      localStorage.removeItem("aegis_token");
+      setAuthTokenGetter(null);
+    }
+
+    if (newMember) {
+      localStorage.setItem("aegis_member", JSON.stringify(newMember));
+    } else {
+      localStorage.removeItem("aegis_member");
+    }
+
+    authBoundaryRef.current = nextBoundary;
+    if (boundaryChanged) {
+      queryClient.clear();
+    }
+
     setTokenState((currentToken) =>
       currentToken === newToken ? currentToken : newToken,
     );
@@ -50,21 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return newMember;
     });
-    
-    if (newToken) {
-      localStorage.setItem("aegis_token", newToken);
-      setAuthTokenGetter(() => newToken);
-    } else {
-      localStorage.removeItem("aegis_token");
-      setAuthTokenGetter(null);
-    }
-    
-    if (newMember) {
-      localStorage.setItem("aegis_member", JSON.stringify(newMember));
-    } else {
-      localStorage.removeItem("aegis_member");
-    }
-  }, []);
+  }, [queryClient]);
 
   const logout = useCallback(() => {
     setAuth(null, null);

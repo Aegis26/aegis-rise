@@ -20,11 +20,14 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AdminChapterList,
   AdminMemberList,
+  AdminMemberRoleUpdate,
   AdminOverview,
   AdminPostList,
   AdminPostResponse,
   ChapterSettingsInput,
+  ErrorResponse,
   FeedResult,
   GetAdminOverviewParams,
   GetChapterGuidelinesParams,
@@ -57,6 +60,7 @@ import type {
   MemberModerationResult,
   MemberPostsResult,
   MemberResponse,
+  MemberRoleUpdateResult,
   MemberUpdate,
   Message,
   ModerationLogList,
@@ -2322,6 +2326,77 @@ export function useListAdminMembers<TData = Awaited<ReturnType<typeof listAdminM
 
 
 
+export const getListAdminChaptersUrl = () => {
+
+
+
+
+  return `/api/admin/chapters`
+}
+
+export const listAdminChapters = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminChapterList> => {
+
+  return customFetch<AdminChapterList>(getListAdminChaptersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminChaptersQueryKey = () => {
+    return [
+    `/api/admin/chapters`
+    ] as const;
+    }
+
+
+export const getListAdminChaptersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminChapters>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminChapters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminChaptersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminChapters>>> = ({ signal }) => listAdminChapters({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminChapters>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminChaptersQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminChapters>>>
+export type ListAdminChaptersQueryError = ErrorType<ErrorResponse>
+
+
+
+export function useListAdminChapters<TData = Awaited<ReturnType<typeof listAdminChapters>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminChapters>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminChaptersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
 export const getListPendingMembersUrl = (params?: ListPendingMembersParams,) => {
   const normalizedParams = new URLSearchParams();
 
@@ -2661,6 +2736,72 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getDeleteMemberMutationOptions(options));
+    }
+
+export const getUpdateMemberRoleUrl = (memberId: string,) => {
+
+
+
+
+  return `/api/admin/members/${memberId}/role`
+}
+
+export const updateMemberRole = async (memberId: string,
+    adminMemberRoleUpdate: AdminMemberRoleUpdate, options?: Parameters<typeof customFetch>[1]): Promise<MemberRoleUpdateResult> => {
+
+  return customFetch<MemberRoleUpdateResult>(getUpdateMemberRoleUrl(memberId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminMemberRoleUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMemberRoleMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMemberRole>>, TError,{memberId: string;data: BodyType<AdminMemberRoleUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMemberRole>>, TError,{memberId: string;data: BodyType<AdminMemberRoleUpdate>}, TContext> => {
+
+const mutationKey = ['updateMemberRole'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMemberRole>>, {memberId: string;data: BodyType<AdminMemberRoleUpdate>}> = (props) => {
+          const {memberId,data} = props ?? {};
+
+          return  updateMemberRole(memberId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMemberRoleMutationResult = NonNullable<Awaited<ReturnType<typeof updateMemberRole>>>
+    export type UpdateMemberRoleMutationBody = BodyType<AdminMemberRoleUpdate>
+    export type UpdateMemberRoleMutationError = ErrorType<ErrorResponse>
+
+    export const useUpdateMemberRole = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMemberRole>>, TError,{memberId: string;data: BodyType<AdminMemberRoleUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMemberRole>>,
+        TError,
+        {memberId: string;data: BodyType<AdminMemberRoleUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateMemberRoleMutationOptions(options));
     }
 
 export const getGetMemberActivityUrl = (memberId: string,) => {

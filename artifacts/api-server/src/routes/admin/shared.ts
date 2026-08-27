@@ -71,6 +71,12 @@ export function ensureChapterAccess(
   }
 }
 
+export function requireSuperAdmin(user: AuthenticatedUser): void {
+  if (user.role !== "super_admin") {
+    throw new HttpError(403, "Master administrator access is required.");
+  }
+}
+
 export function buildAdminPagination(
   page: number,
   limit: number,

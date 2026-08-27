@@ -53,7 +53,7 @@ and replace the placeholder only in the private database console:
 BEGIN;
 
 UPDATE members
-SET role = 'admin', status = 'active', updated_at = NOW()
+SET role = 'super_admin', status = 'active', updated_at = NOW()
 WHERE email = lower('<administrator-email>')
   AND status = 'pending'
 RETURNING id, email, chapter, role, status;
@@ -63,7 +63,7 @@ Verify that exactly one expected row is returned, then run `COMMIT;`. If no
 row or an unexpected row is returned, run `ROLLBACK;`. All later approvals use
 the authenticated admin endpoints.
 
-Administrators are chapter-scoped. Set `role = 'super_admin'` only for trusted operators who need access across all chapters. Super-admin endpoints accept an optional `?chapter=...` filter; regular administrators are always restricted to their own chapter.
+The first trusted program owner uses `super_admin`, which provides the master-admin dashboard across all chapters and the ability to assign chapter admins. Administrators assigned through that dashboard remain restricted to their own chapter. Super-admin endpoints accept an optional `?chapter=...` filter.
 
 ## Media uploads and posts
 

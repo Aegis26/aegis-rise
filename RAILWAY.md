@@ -113,7 +113,7 @@ email, password, or query history in the repository.
 BEGIN;
 
 UPDATE members
-SET role = 'admin', status = 'active', updated_at = NOW()
+SET role = 'super_admin', status = 'active', updated_at = NOW()
 WHERE email = lower('<admin-email>')
   AND status = 'pending'
 RETURNING id, email, chapter, role, status;
@@ -126,10 +126,11 @@ run:
 COMMIT;
 ```
 
-If no row or an unexpected row is returned, run `ROLLBACK;` instead. The new
-administrator can then sign in and approve later members through Aegis Rise.
-Use `super_admin` only for a trusted operator who must manage multiple
-chapters.
+If no row or an unexpected row is returned, run `ROLLBACK;` instead. The
+program owner can then sign in as the master administrator, review
+applications across all chapters, and assign chapter-level administrators
+through Aegis Rise. Only the trusted program owner should receive
+`super_admin`; assigned chapter admins remain scoped to their own chapter.
 
 ## OAuth callback URLs
 

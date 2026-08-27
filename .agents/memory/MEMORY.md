@@ -11,3 +11,5 @@
 - [Instagram MVP permissions](instagram-mvp-permissions.md) — Instagram is basic authentication only in Phase 1; defer professional-account access and publishing.
 - [Railway deployment topology](railway-deployment-topology.md) — deploy web and API together on one origin to preserve relative API calls and OAuth callbacks.
 - [Profile wallpaper security](profile-wallpaper-security.md) — public wallpapers must be validated, member-owned storage assets; keep public profiles on a presentation-only allowlist.
+- [API server codegen workflow](api-server-codegen-workflow.md) — after any backend route/enum change, restart the API server workflow explicitly; its dev command doesn't hot-reload.
+- [Authenticated query cache boundaries](authenticated-query-cache-boundaries.md) — clear protected client caches whenever the authenticated identity or privilege level changes.

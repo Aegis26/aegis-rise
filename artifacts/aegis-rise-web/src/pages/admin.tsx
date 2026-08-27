@@ -2,12 +2,14 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import {
   useGetAdminOverview,
+  useListAdminChapters,
   useListAdminMembers,
   useListPendingMembers,
   useApproveMember,
   useDenyMember,
   useBanMember,
   useDeleteMember,
+  useUpdateMemberRole,
   useGetChapterSettings,
   useUpdateChapterSettings,
   useListAdminPosts,
@@ -27,6 +29,7 @@ import {
   getListAdminPostsQueryKey,
   getGetChapterGuidelinesQueryKey,
   getListModerationLogsQueryKey,
+  getListAdminChaptersQueryKey,
   getListAdminMembersQueryKey,
   getListPendingMembersQueryKey,
   type ChapterSettingsInput,
@@ -55,10 +58,11 @@ import {
 
 export default function Admin() {
   const { member } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [selectedChapter, setSelectedChapter] = useState("");
 
   const isAdmin = member?.role === "admin" || member?.role === "super_admin";
+  const isSuperAdmin = member?.role === "super_admin";
+  const chapter = selectedChapter || undefined;
 
   if (!isAdmin) {
     return (
@@ -73,9 +77,22 @@ export default function Admin() {
   return (
     <div className="max-w-6xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-8">
       <div>
-        <h1 className="text-3xl font-display font-bold">Chapter Administration</h1>
-        <p className="text-muted-foreground mt-2">Manage members, monitor activity, and configure settings.</p>
+        <h1 className="text-3xl font-display font-bold">
+          {isSuperAdmin ? "Program Administration" : "Chapter Administration"}
+        </h1>
+        <p className="text-muted-foreground mt-2">
+          {isSuperAdmin
+            ? "Manage applications, chapter administrators, and activity across the entire program."
+            : "Manage members, monitor activity, and configure settings for your chapter."}
+        </p>
       </div>
+
+      {isSuperAdmin && (
+        <MasterAdminScope
+          selectedChapter={selectedChapter}
+          onChapterChange={setSelectedChapter}
+        />
+      )}
 
       <Tabs defaultValue="overview" className="w-full">
         <TabsList className="w-full justify-start overflow-x-auto h-auto p-1 bg-muted/50 border border-border">
@@ -91,33 +108,86 @@ export default function Admin() {
 
         <div className="mt-6">
           <TabsContent value="overview">
-            <OverviewTab />
+            <OverviewTab chapter={chapter} />
           </TabsContent>
 
           <TabsContent value="approvals">
-            <ApprovalsTab />
+            <ApprovalsTab chapter={chapter} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
 
           <TabsContent value="members">
-            <MembersTab />
+            <MembersTab chapter={chapter} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
-          <TabsContent value="posts"><PostsTab /></TabsContent>
-          <TabsContent value="analytics"><AnalyticsTab /></TabsContent>
+          <TabsContent value="posts"><PostsTab chapter={chapter} /></TabsContent>
+          <TabsContent value="analytics"><AnalyticsTab chapter={chapter} /></TabsContent>
 
           <TabsContent value="settings">
-            <SettingsTab />
+            <SettingsTab chapter={chapter} isSuperAdmin={isSuperAdmin} />
           </TabsContent>
-          <TabsContent value="guidelines"><GuidelinesTab /></TabsContent>
-          <TabsContent value="activity"><ActivityTab /></TabsContent>
+          <TabsContent value="guidelines"><GuidelinesTab chapter={chapter} isSuperAdmin={isSuperAdmin} /></TabsContent>
+          <TabsContent value="activity"><ActivityTab chapter={chapter} /></TabsContent>
         </div>
       </Tabs>
     </div>
   );
 }
 
-function OverviewTab() {
-  const { data: overviewData, isLoading } = useGetAdminOverview(undefined, {
-    query: { queryKey: getGetAdminOverviewQueryKey() }
+function MasterAdminScope({
+  selectedChapter,
+  onChapterChange,
+}: {
+  selectedChapter: string;
+  onChapterChange: (chapter: string) => void;
+}) {
+  const { data, isLoading, isError } = useListAdminChapters();
+
+  return (
+    <Card className="border-primary/40 bg-primary/5" data-testid="master-admin-scope">
+      <CardHeader className="pb-3">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <CardTitle className="text-lg">Master admin scope</CardTitle>
+            <CardDescription className="mt-1">
+              {selectedChapter
+                ? `Viewing and managing ${selectedChapter}.`
+                : "Viewing applications and activity across every chapter."}
+            </CardDescription>
+          </div>
+          <div className="w-full space-y-1.5 sm:w-72">
+            <label htmlFor="admin-chapter-scope" className="text-sm font-medium">
+              Chapter
+            </label>
+            <select
+              id="admin-chapter-scope"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              value={selectedChapter}
+              onChange={(event) => onChapterChange(event.target.value)}
+              disabled={isLoading || isError}
+              data-testid="select-admin-chapter"
+            >
+              <option value="">All chapters</option>
+              {(data?.chapters ?? []).map((chapter) => (
+                <option key={chapter.name} value={chapter.name}>
+                  {chapter.name} ({chapter.pendingCount} pending)
+                </option>
+              ))}
+            </select>
+            {isError && (
+              <p className="text-xs text-destructive">
+                Chapter choices could not be loaded.
+              </p>
+            )}
+          </div>
+        </div>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function OverviewTab({ chapter }: { chapter?: string }) {
+  const params = chapter ? { chapter } : undefined;
+  const { data: overviewData, isLoading } = useGetAdminOverview(params, {
+    query: { queryKey: getGetAdminOverviewQueryKey(params) }
   });
 
   if (isLoading) {
@@ -174,12 +244,19 @@ function OverviewTab() {
   );
 }
 
-function ApprovalsTab() {
+function ApprovalsTab({
+  chapter,
+  isSuperAdmin,
+}: {
+  chapter?: string;
+  isSuperAdmin: boolean;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const params = chapter ? { chapter } : undefined;
 
-  const { data: pendingData, isLoading } = useListPendingMembers(undefined, {
-    query: { queryKey: getListPendingMembersQueryKey() }
+  const { data: pendingData, isLoading } = useListPendingMembers(params, {
+    query: { queryKey: getListPendingMembersQueryKey(params) }
   });
 
   const approveMutation = useApproveMember({
@@ -189,6 +266,7 @@ function ApprovalsTab() {
         queryClient.invalidateQueries({ queryKey: getListPendingMembersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAdminOverviewQueryKey() });
         queryClient.invalidateQueries({ queryKey: getListAdminMembersQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListAdminChaptersQueryKey() });
       },
       onError: (err: any) => toast({ title: "Failed to approve", description: err.message, variant: "destructive" })
     }
@@ -200,6 +278,7 @@ function ApprovalsTab() {
         toast({ title: "Member denied" });
         queryClient.invalidateQueries({ queryKey: getListPendingMembersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAdminOverviewQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListAdminChaptersQueryKey() });
       },
       onError: (err: any) => toast({ title: "Failed to deny", description: err.message, variant: "destructive" })
     }
@@ -223,7 +302,11 @@ function ApprovalsTab() {
     <Card>
       <CardHeader>
         <CardTitle>Pending Approvals</CardTitle>
-        <CardDescription>Review and approve new member applications for this chapter.</CardDescription>
+        <CardDescription>
+          {isSuperAdmin && !chapter
+            ? "Review and approve new member applications across every chapter."
+            : `Review and approve new member applications${chapter ? ` for ${chapter}` : " for your chapter"}.`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {members.length === 0 ? (
@@ -237,6 +320,11 @@ function ApprovalsTab() {
                 <div className="mb-4 sm:mb-0">
                   <h4 className="font-semibold text-lg">{member.name}</h4>
                   <div className="text-sm text-muted-foreground mb-1">{member.title} at {member.company}</div>
+                   {isSuperAdmin && (
+                     <Badge variant="outline" className="mb-2">
+                       {member.chapter}
+                     </Badge>
+                   )}
                   <div className="text-xs text-muted-foreground">Applied: {new Date(member.createdAt).toLocaleDateString()}</div>
                   {member.bio && (
                     <div className="text-sm mt-2 p-2 bg-muted/30 rounded-md border border-border/50">
@@ -272,14 +360,27 @@ function ApprovalsTab() {
   );
 }
 
-function MembersTab() {
+function MembersTab({
+  chapter,
+  isSuperAdmin,
+}: {
+  chapter?: string;
+  isSuperAdmin: boolean;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [memberPendingDeletion, setMemberPendingDeletion] = useState<{ id: string; name: string } | null>(null);
+  const [memberPendingRoleChange, setMemberPendingRoleChange] = useState<{
+    id: string;
+    name: string;
+    chapter: string;
+    role: "member" | "admin";
+  } | null>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
+  const params = chapter ? { chapter } : undefined;
 
-  const { data: membersData, isLoading } = useListAdminMembers(undefined, {
-    query: { queryKey: getListAdminMembersQueryKey() }
+  const { data: membersData, isLoading } = useListAdminMembers(params, {
+    query: { queryKey: getListAdminMembersQueryKey(params) }
   });
 
   const banMutation = useBanMember({
@@ -288,6 +389,7 @@ function MembersTab() {
         toast({ title: "Member banned" });
         queryClient.invalidateQueries({ queryKey: getListAdminMembersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAdminOverviewQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListAdminChaptersQueryKey() });
       },
       onError: (err: any) => toast({ title: "Failed to ban", description: err.message, variant: "destructive" })
     }
@@ -299,11 +401,34 @@ function MembersTab() {
         toast({ title: "Member deleted", description: result.message });
         queryClient.invalidateQueries({ queryKey: getListAdminMembersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAdminOverviewQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListAdminChaptersQueryKey() });
         setMemberPendingDeletion(null);
         setDeleteConfirmationText("");
       },
       onError: (err: any) => toast({ title: "Failed to delete member", description: err.message, variant: "destructive" })
     }
+  });
+
+  const roleMutation = useUpdateMemberRole({
+    mutation: {
+      onSuccess: (result) => {
+        const isAdmin = result.member.role === "admin";
+        toast({
+          title: isAdmin ? "Chapter admin assigned" : "Chapter admin removed",
+          description: `${result.member.name} is now ${isAdmin ? `an admin for ${result.member.chapter}` : "a regular member"}.`,
+        });
+        queryClient.invalidateQueries({ queryKey: getListAdminMembersQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListModerationLogsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: getListAdminChaptersQueryKey() });
+        setMemberPendingRoleChange(null);
+      },
+      onError: (err: any) =>
+        toast({
+          title: "Failed to update permissions",
+          description: err.message,
+          variant: "destructive",
+        }),
+    },
   });
 
   const handleBan = (memberId: string) => {
@@ -317,6 +442,16 @@ function MembersTab() {
     deleteMutation.mutate({ memberId: memberPendingDeletion.id, data: { reason: "Admin discretion." } });
   };
 
+  const handleConfirmRoleChange = () => {
+    if (!memberPendingRoleChange) return;
+    roleMutation.mutate({
+      memberId: memberPendingRoleChange.id,
+      data: {
+        role: memberPendingRoleChange.role === "admin" ? "member" : "admin",
+      },
+    });
+  };
+
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
   }
@@ -326,8 +461,12 @@ function MembersTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Directory</CardTitle>
-        <CardDescription>Manage active and banned members in your chapter.</CardDescription>
+        <CardTitle>{isSuperAdmin && !chapter ? "Program Directory" : "Directory"}</CardTitle>
+        <CardDescription>
+          {isSuperAdmin && !chapter
+            ? "Manage members and chapter administrators across the entire program."
+            : `Manage active and banned members${chapter ? ` in ${chapter}` : " in your chapter"}.`}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {members.length === 0 ? (
@@ -340,6 +479,7 @@ function MembersTab() {
               <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-b border-border">
                 <tr>
                   <th className="px-4 py-3 font-medium">Member</th>
+                   {isSuperAdmin && <th className="px-4 py-3 font-medium">Chapter</th>}
                   <th className="px-4 py-3 font-medium">Role</th>
                   <th className="px-4 py-3 font-medium">Status</th>
                   <th className="px-4 py-3 font-medium text-right">Actions</th>
@@ -359,7 +499,18 @@ function MembersTab() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 capitalize">{member.role.replace("_", " ")}</td>
+                    {isSuperAdmin && (
+                      <td className="px-4 py-3">{member.chapter}</td>
+                    )}
+                    <td className="px-4 py-3">
+                      <Badge variant={member.role === "super_admin" ? "default" : "outline"}>
+                        {member.role === "super_admin"
+                          ? "Master admin"
+                          : member.role === "admin"
+                            ? "Chapter admin"
+                            : "Member"}
+                      </Badge>
+                    </td>
                     <td className="px-4 py-3">
                       <Badge variant={member.status === "active" ? "default" : member.status === "banned" ? "destructive" : "secondary"}>
                         {member.status}
@@ -367,6 +518,29 @@ function MembersTab() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex justify-end gap-2">
+                         {isSuperAdmin &&
+                           member.status === "active" &&
+                           member.role !== "super_admin" && (
+                             <Button
+                               variant="outline"
+                               size="sm"
+                               className="h-8"
+                               onClick={() =>
+                                 setMemberPendingRoleChange({
+                                   id: member.id,
+                                   name: member.name,
+                                   chapter: member.chapter,
+                                   role: member.role === "admin" ? "admin" : "member",
+                                 })
+                               }
+                               disabled={roleMutation.isPending}
+                               data-testid={`button-role-${member.id}`}
+                             >
+                               {member.role === "admin"
+                                 ? "Remove admin"
+                                 : "Make chapter admin"}
+                             </Button>
+                           )}
                         {member.status !== "banned" && member.role !== "super_admin" && (
                           <Button
                             variant="ghost"
@@ -447,13 +621,63 @@ function MembersTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {memberPendingRoleChange && (
+      <AlertDialog
+        open
+        onOpenChange={(open) => {
+          if (!open) setMemberPendingRoleChange(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {memberPendingRoleChange.role === "admin"
+                ? `Remove ${memberPendingRoleChange.name}'s admin permissions?`
+                : `Make ${memberPendingRoleChange.name} a chapter admin?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {memberPendingRoleChange.role === "admin"
+                ? `${memberPendingRoleChange.name} will no longer be able to approve members or manage ${memberPendingRoleChange.chapter}.`
+                : `${memberPendingRoleChange.name} will be able to approve members and manage content, settings, and activity only for ${memberPendingRoleChange.chapter}. This does not grant program-wide master-admin access.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-role">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(event) => {
+                event.preventDefault();
+                handleConfirmRoleChange();
+              }}
+              disabled={roleMutation.isPending}
+              data-testid="button-confirm-role"
+            >
+              {roleMutation.isPending
+                ? "Saving..."
+                : memberPendingRoleChange.role === "admin"
+                  ? "Remove admin permissions"
+                  : "Assign chapter admin"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      )}
     </Card>
   );
 }
 
-function SettingsTab() {
+function SettingsTab({
+  chapter,
+  isSuperAdmin,
+}: {
+  chapter?: string;
+  isSuperAdmin: boolean;
+}) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const params = chapter ? { chapter } : undefined;
   const [chapterName, setChapterName] = useState("");
   const [description, setDescription] = useState("");
   const [primaryColor, setPrimaryColor] = useState("#0EA5E9");
@@ -463,8 +687,8 @@ function SettingsTab() {
     data: settingsData,
     isLoading,
     isError,
-  } = useGetChapterSettings(undefined, {
-    query: { queryKey: getGetChapterSettingsQueryKey() },
+  } = useGetChapterSettings(params, {
+    query: { queryKey: getGetChapterSettingsQueryKey(params) },
   });
   const settings = settingsData?.settings;
 
@@ -481,9 +705,9 @@ function SettingsTab() {
   const updateMutation = useUpdateChapterSettings({
     mutation: {
       onSuccess: (result) => {
-        queryClient.setQueryData(getGetChapterSettingsQueryKey(), result);
+        queryClient.setQueryData(getGetChapterSettingsQueryKey(params), result);
         void queryClient.invalidateQueries({
-          queryKey: getGetChapterSettingsQueryKey(),
+          queryKey: getGetChapterSettingsQueryKey(params),
         });
         toast({ title: "Settings updated successfully" });
       },
@@ -526,8 +750,13 @@ function SettingsTab() {
 
     updateMutation.mutate({
       data: changes,
+      params,
     });
   };
+
+  if (isSuperAdmin && !chapter) {
+    return <ChapterSelectionRequired area="chapter settings" />;
+  }
 
   if (isLoading) {
     return <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
@@ -634,27 +863,29 @@ function SettingsTab() {
   );
 }
 
-function PostsTab() {
+function PostsTab({ chapter }: { chapter?: string }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data, isLoading } = useListAdminPosts({ limit: 50 });
-  const refresh = () => queryClient.invalidateQueries({ queryKey: getListAdminPostsQueryKey({ limit: 50 }) });
+  const params = chapter ? { limit: 50, chapter } : { limit: 50 };
+  const { data, isLoading } = useListAdminPosts(params);
+  const refresh = () => queryClient.invalidateQueries({ queryKey: getListAdminPostsQueryKey(params) });
   const feature = useFeaturePost({ mutation: { onSuccess: refresh } });
   const unfeature = useUnfeaturePost({ mutation: { onSuccess: refresh } });
   const remove = useDeleteAdminPost({ mutation: { onSuccess: () => { refresh(); toast({ title: "Post removed" }); } } });
   if (isLoading) return <LoadingCard />;
-  return <Card><CardHeader><CardTitle>Post moderation</CardTitle><CardDescription>Feature high-value chapter content or remove posts that violate guidelines.</CardDescription></CardHeader><CardContent className="space-y-3">
-    {(data?.posts ?? []).map((post) => <div key={post.postId} className="rounded-md border border-border p-4 flex gap-4 justify-between"><div><p className="font-medium">{post.author.name}</p><p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p></div><div className="flex gap-2 shrink-0"><Button size="sm" variant="outline" onClick={() => post.status === "featured" ? unfeature.mutate({ postId: post.postId }) : feature.mutate({ postId: post.postId })}>{post.status === "featured" ? "Unfeature" : "Feature"}</Button><Button size="sm" variant="destructive" onClick={() => remove.mutate({ postId: post.postId, data: { reason: "Removed by chapter administrator" } })}>Remove</Button></div></div>)}
+  return <Card><CardHeader><CardTitle>Post moderation</CardTitle><CardDescription>{chapter ? `Feature or remove content in ${chapter}.` : "Feature or remove content across the program."}</CardDescription></CardHeader><CardContent className="space-y-3">
+    {(data?.posts ?? []).map((post) => <div key={post.postId} className="rounded-md border border-border p-4 flex gap-4 justify-between"><div><p className="font-medium">{post.author.name} <span className="font-normal text-muted-foreground">· {post.author.chapter}</span></p><p className="text-sm text-muted-foreground line-clamp-2">{post.caption}</p></div><div className="flex gap-2 shrink-0"><Button size="sm" variant="outline" onClick={() => post.status === "featured" ? unfeature.mutate({ postId: post.postId }) : feature.mutate({ postId: post.postId })}>{post.status === "featured" ? "Unfeature" : "Feature"}</Button><Button size="sm" variant="destructive" onClick={() => remove.mutate({ postId: post.postId, data: { reason: "Removed by administrator" } })}>Remove</Button></div></div>)}
     {!data?.posts.length && <p className="text-muted-foreground">No posts to moderate.</p>}
   </CardContent></Card>;
 }
 
-function AnalyticsTab() {
-  const { data: posts } = useGetPostAnalytics();
-  const { data: members } = useGetMemberAnalytics();
-  const { data: shares } = useGetShareAnalytics();
-  const { data: platforms } = useGetPlatformAnalytics();
-  const { data: timeline } = useGetShareTimeline();
+function AnalyticsTab({ chapter }: { chapter?: string }) {
+  const params = chapter ? { chapter } : undefined;
+  const { data: posts } = useGetPostAnalytics(params);
+  const { data: members } = useGetMemberAnalytics(params);
+  const { data: shares } = useGetShareAnalytics(params);
+  const { data: platforms } = useGetPlatformAnalytics(params);
+  const { data: timeline } = useGetShareTimeline(params);
   const platformEntries = Object.entries(platforms ?? {}).filter(([key]) => key !== "totalShares");
   return <div className="space-y-6">
     <div className="grid gap-4 md:grid-cols-3"><Metric label="Total shares" value={shares?.totalShares ?? 0} /><Metric label="Shares this month" value={shares?.sharesThisMonth ?? 0} /><Metric label="Tracked posts" value={posts?.posts.length ?? 0} /></div>
@@ -663,21 +894,44 @@ function AnalyticsTab() {
   </div>;
 }
 
-function GuidelinesTab() {
+function GuidelinesTab({
+  chapter,
+  isSuperAdmin,
+}: {
+  chapter?: string;
+  isSuperAdmin: boolean;
+}) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data, isLoading } = useGetChapterGuidelines();
+  const params = chapter ? { chapter } : undefined;
+  const { data, isLoading } = useGetChapterGuidelines(params);
   const [guidelines, setGuidelines] = useState("");
   useEffect(() => { setGuidelines(data?.guidelinesText ?? ""); }, [data?.guidelinesText]);
-  const update = useUpdateChapterGuidelines({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetChapterGuidelinesQueryKey() }); toast({ title: "Guidelines saved" }); } } });
+  const update = useUpdateChapterGuidelines({ mutation: { onSuccess: () => { queryClient.invalidateQueries({ queryKey: getGetChapterGuidelinesQueryKey(params) }); toast({ title: "Guidelines saved" }); } } });
+  if (isSuperAdmin && !chapter) return <ChapterSelectionRequired area="chapter guidelines" />;
   if (isLoading) return <LoadingCard />;
-  return <Card><CardHeader><CardTitle>Chapter guidelines</CardTitle><CardDescription>Publish the expectations members see before participating.</CardDescription></CardHeader><CardContent className="space-y-4"><Textarea value={guidelines} onChange={(event) => setGuidelines(event.target.value)} className="min-h-64" data-testid="input-chapter-guidelines" /><Button onClick={() => update.mutate({ data: { guidelinesText: guidelines } })} disabled={update.isPending} data-testid="button-save-guidelines">{update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save guidelines</Button></CardContent></Card>;
+  return <Card><CardHeader><CardTitle>Chapter guidelines</CardTitle><CardDescription>Publish the expectations members see before participating.</CardDescription></CardHeader><CardContent className="space-y-4"><Textarea value={guidelines} onChange={(event) => setGuidelines(event.target.value)} className="min-h-64" data-testid="input-chapter-guidelines" /><Button onClick={() => update.mutate({ data: { guidelinesText: guidelines }, params })} disabled={update.isPending} data-testid="button-save-guidelines">{update.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Save guidelines</Button></CardContent></Card>;
 }
 
-function ActivityTab() {
-  const { data, isLoading } = useListModerationLogs({ limit: 50 });
+function ActivityTab({ chapter }: { chapter?: string }) {
+  const params = chapter ? { limit: 50, chapter } : { limit: 50 };
+  const { data, isLoading } = useListModerationLogs(params);
   if (isLoading) return <LoadingCard />;
-  return <Card><CardHeader><CardTitle>Recent admin activity</CardTitle><CardDescription>Moderation and membership actions in this chapter.</CardDescription></CardHeader><CardContent className="space-y-3">{(data?.logs ?? []).map((log) => <div key={log.id} className="border-l-2 border-primary pl-3"><p className="font-medium capitalize">{log.action.replaceAll("_", " ")}</p><p className="text-sm text-muted-foreground">{new Date(log.date).toLocaleString()}</p></div>)}{!data?.logs.length && <p className="text-muted-foreground">No activity recorded yet.</p>}</CardContent></Card>;
+  return <Card><CardHeader><CardTitle>Recent admin activity</CardTitle><CardDescription>{chapter ? `Moderation and membership actions in ${chapter}.` : "Moderation and membership actions across every chapter."}</CardDescription></CardHeader><CardContent className="space-y-3">{(data?.logs ?? []).map((log) => <div key={log.id} className="border-l-2 border-primary pl-3"><p className="font-medium capitalize">{log.action.replaceAll("_", " ")}</p><p className="text-sm text-muted-foreground">{log.chapter} · {new Date(log.date).toLocaleString()}</p></div>)}{!data?.logs.length && <p className="text-muted-foreground">No activity recorded yet.</p>}</CardContent></Card>;
+}
+
+function ChapterSelectionRequired({ area }: { area: string }) {
+  return (
+    <Card>
+      <CardContent className="py-12 text-center">
+        <p className="font-medium">Select a chapter to manage {area}.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Use the master admin scope menu above. These settings cannot be changed
+          across all chapters at once.
+        </p>
+      </CardContent>
+    </Card>
+  );
 }
 
 function Metric({ label, value }: { label: string; value: number }) {

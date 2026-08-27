@@ -6,7 +6,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './adminChapter';
+export * from './adminChapterList';
 export * from './adminMemberList';
+export * from './adminMemberRoleUpdate';
+export * from './adminMemberRoleUpdateRole';
 export * from './adminOverview';
 export * from './adminPost';
 export * from './adminPostList';
@@ -18,6 +22,7 @@ export * from './authMemberStatus';
 export * from './chapterParameter';
 export * from './chapterSettings';
 export * from './chapterSettingsInput';
+export * from './errorResponse';
 export * from './feedResult';
 export * from './getAdminOverviewParams';
 export * from './getChapterGuidelinesParams';
@@ -61,6 +66,10 @@ export * from './memberModerationResultNotification';
 export * from './memberPostsResult';
 export * from './memberResponse';
 export * from './memberRole';
+export * from './memberRoleTarget';
+export * from './memberRoleTargetRole';
+export * from './memberRoleTargetStatus';
+export * from './memberRoleUpdateResult';
 export * from './memberStatus';
 export * from './memberSummary';
 export * from './memberThemePreference';

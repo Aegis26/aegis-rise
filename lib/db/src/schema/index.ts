@@ -44,6 +44,8 @@ export const modActionTypeEnum = pgEnum("mod_action_type", [
   "deny_member",
   "ban_member",
   "delete_member",
+  "promote_admin",
+  "demote_admin",
   "update_settings",
   "update_guidelines",
 ]);

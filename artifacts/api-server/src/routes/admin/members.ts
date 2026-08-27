@@ -2,6 +2,7 @@ import { Router, type IRouter, type RequestHandler } from "express";
 import { and, asc, count, desc, eq, sql, type SQL } from "drizzle-orm";
 import { z } from "zod/v4";
 import {
+  chapterConfigsTable,
   db,
   membersTable,
   postsTable,
@@ -24,6 +25,7 @@ import {
   optionalReasonBodySchema,
   parseAdminResourceId,
   recordModAction,
+  requireSuperAdmin,
   resolveChapterScope,
 } from "./shared";
 
@@ -32,6 +34,9 @@ const router: IRouter = Router();
 const listMembersSchema = adminPaginationSchema.extend({
   status: z.enum(["active", "pending", "banned"]).optional(),
   chapter: optionalChapterSchema,
+});
+const memberRoleUpdateSchema = z.object({
+  role: z.enum(["member", "admin"]),
 });
 
 const memberSummarySelection = {
@@ -422,6 +427,59 @@ router.delete(
   },
 );
 
+router.get("/admin/chapters", requireAdmin, async (request, response, next) => {
+  try {
+    requireSuperAdmin(request.user!);
+
+    const [memberRows, configRows] = await Promise.all([
+      db
+        .select({
+          name: membersTable.chapter,
+          memberCount: count(membersTable.id),
+          pendingCount: sql<number>`count(*) FILTER (
+            WHERE ${membersTable.status} = 'pending'
+          )`,
+        })
+        .from(membersTable)
+        .groupBy(membersTable.chapter),
+      db
+        .select({
+          name: chapterConfigsTable.chapterName,
+          nameReserved: chapterConfigsTable.nameReserved,
+        })
+        .from(chapterConfigsTable),
+    ]);
+
+    const chapters = new Map(
+      memberRows.map((row) => [
+        row.name,
+        {
+          name: row.name,
+          memberCount: Number(row.memberCount),
+          pendingCount: Number(row.pendingCount),
+        },
+      ]),
+    );
+    for (const config of configRows) {
+      if (!config.nameReserved && !chapters.has(config.name)) {
+        chapters.set(config.name, {
+          name: config.name,
+          memberCount: 0,
+          pendingCount: 0,
+        });
+      }
+    }
+
+    response.json({
+      chapters: [...chapters.values()].sort((left, right) =>
+        left.name.localeCompare(right.name),
+      ),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get(
   "/admin/members/:id/activity",
   requireAdmin,
@@ -477,6 +535,70 @@ router.get(
           joinDate: member.joinDate,
         },
       });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.patch(
+  "/admin/members/:id/role",
+  requireAdmin,
+  async (request, response, next) => {
+    try {
+      const memberId = parseAdminResourceId(request.params.id, "member");
+      const { role } = memberRoleUpdateSchema.parse(request.body);
+      const admin = request.user!;
+      requireSuperAdmin(admin);
+
+      const member = await db.transaction(async (transaction) => {
+        const target = await loadLockedManagedMember(
+          transaction,
+          memberId,
+          admin,
+          {
+            blockSelf: true,
+            blockSuperAdmin: true,
+          },
+        );
+        if (target.status !== "active") {
+          throw new HttpError(
+            400,
+            "Only active members can have chapter-admin permissions.",
+          );
+        }
+        if (target.role === role) {
+          throw new HttpError(
+            400,
+            role === "admin"
+              ? "Member is already a chapter admin."
+              : "Member is already a regular member.",
+          );
+        }
+
+        const [updatedMember] = await transaction
+          .update(membersTable)
+          .set({ role, updatedAt: new Date() })
+          .where(eq(membersTable.id, memberId))
+          .returning(managedMemberSelection);
+
+        await recordModAction(transaction, {
+          admin,
+          actionType: role === "admin" ? "promote_admin" : "demote_admin",
+          targetType: "member",
+          targetId: target.id,
+          targetLabel: target.name,
+          chapter: target.chapter,
+          reason:
+            role === "admin"
+              ? "Assigned chapter-admin permissions."
+              : "Removed chapter-admin permissions.",
+        });
+
+        return updatedMember;
+      });
+
+      response.json({ member });
     } catch (error) {
       next(error);
     }

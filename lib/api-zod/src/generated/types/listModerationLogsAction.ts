@@ -17,6 +17,8 @@ export const ListModerationLogsAction = {
   deny_member: 'deny_member',
   ban_member: 'ban_member',
   delete_member: 'delete_member',
+  promote_admin: 'promote_admin',
+  demote_admin: 'demote_admin',
   update_settings: 'update_settings',
   update_guidelines: 'update_guidelines',
 } as const;
