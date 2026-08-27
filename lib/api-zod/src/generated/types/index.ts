@@ -8,6 +8,7 @@
 
 export * from './adminChapter';
 export * from './adminChapterList';
+export * from './adminMemberChapterUpdate';
 export * from './adminMemberList';
 export * from './adminMemberRoleUpdate';
 export * from './adminMemberRoleUpdateRole';
@@ -58,6 +59,10 @@ export * from './memberActivityResult';
 export * from './memberActivityResultActivity';
 export * from './memberAnalyticsResult';
 export * from './memberAnalyticsResultMembersItem';
+export * from './memberChapterUpdateResult';
+export * from './memberChapterUpdateTarget';
+export * from './memberChapterUpdateTargetRole';
+export * from './memberChapterUpdateTargetStatus';
 export * from './memberDenialResult';
 export * from './memberDenialResultNotification';
 export * from './memberList';

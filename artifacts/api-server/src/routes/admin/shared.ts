@@ -105,16 +105,25 @@ export type DbTransaction = Parameters<
   Parameters<typeof db.transaction>[0]
 >[0];
 
+export async function lockAdminChapters(
+  transaction: DbTransaction,
+  chapters: string[],
+): Promise<void> {
+  for (const chapter of [...new Set(chapters)].sort()) {
+    await transaction.execute(sql`
+      SELECT pg_advisory_xact_lock(
+        hashtextextended(${chapter}, 0::bigint)
+      )
+    `);
+  }
+}
+
 export async function lockAdminChapter(
   transaction: DbTransaction,
   admin: AuthenticatedUser,
   chapter: string,
 ): Promise<void> {
-  await transaction.execute(sql`
-    SELECT pg_advisory_xact_lock(
-      hashtextextended(${chapter}, 0::bigint)
-    )
-  `);
+  await lockAdminChapters(transaction, [chapter]);
 
   const [currentAdmin] = await transaction
     .select({

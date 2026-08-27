@@ -24,6 +24,7 @@ const logsQuerySchema = adminPaginationSchema.extend({
        "delete_member",
        "promote_admin",
        "demote_admin",
+       "update_member_chapter",
       "update_settings",
       "update_guidelines",
     ])

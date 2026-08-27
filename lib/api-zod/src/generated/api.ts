@@ -761,6 +761,27 @@ export const UpdateMemberRoleResponse = zod.object({
 })
 
 
+export const updateMemberChapterBodyChapterMax = 160;
+
+
+
+export const UpdateMemberChapterBody = zod.object({
+  "chapter": zod.string().min(1).max(updateMemberChapterBodyChapterMax)
+})
+
+export const UpdateMemberChapterResponse = zod.object({
+  "member": zod.object({
+  "id": zod.string().uuid(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "chapter": zod.string(),
+  "role": zod.enum(['member', 'admin']),
+  "status": zod.enum(['pending', 'active', 'banned']),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
 export const GetMemberActivityResponse = zod.object({
   "activity": zod.object({
   "memberId": zod.string().uuid(),

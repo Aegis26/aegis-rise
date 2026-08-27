@@ -509,6 +509,14 @@ export interface AdminMemberRoleUpdate {
   role: AdminMemberRoleUpdateRole;
 }
 
+export interface AdminMemberChapterUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  chapter: string;
+}
+
 export type MemberRoleTargetRole = typeof MemberRoleTargetRole[keyof typeof MemberRoleTargetRole];
 
 
@@ -536,6 +544,37 @@ export interface MemberRoleTarget {
 
 export interface MemberRoleUpdateResult {
   member: MemberRoleTarget;
+}
+
+export type MemberChapterUpdateTargetRole = typeof MemberChapterUpdateTargetRole[keyof typeof MemberChapterUpdateTargetRole];
+
+
+export const MemberChapterUpdateTargetRole = {
+  member: 'member',
+  admin: 'admin',
+} as const;
+
+export type MemberChapterUpdateTargetStatus = typeof MemberChapterUpdateTargetStatus[keyof typeof MemberChapterUpdateTargetStatus];
+
+
+export const MemberChapterUpdateTargetStatus = {
+  pending: 'pending',
+  active: 'active',
+  banned: 'banned',
+} as const;
+
+export interface MemberChapterUpdateTarget {
+  id: string;
+  email: string;
+  name: string;
+  chapter: string;
+  role: MemberChapterUpdateTargetRole;
+  status: MemberChapterUpdateTargetStatus;
+  updatedAt: string;
+}
+
+export interface MemberChapterUpdateResult {
+  member: MemberChapterUpdateTarget;
 }
 
 export interface PendingMember {
@@ -881,6 +920,7 @@ export const ListModerationLogsAction = {
   delete_member: 'delete_member',
   promote_admin: 'promote_admin',
   demote_admin: 'demote_admin',
+  update_member_chapter: 'update_member_chapter',
   update_settings: 'update_settings',
   update_guidelines: 'update_guidelines',
 } as const;

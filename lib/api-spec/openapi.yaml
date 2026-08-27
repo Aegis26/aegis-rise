@@ -647,6 +647,51 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
+  /admin/members/{memberId}/chapter:
+    patch:
+      operationId: updateMemberChapter
+      tags: [admin]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/MemberId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMemberChapterUpdate"
+      responses:
+        "200":
+          description: Member chapter updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MemberChapterUpdateResult"
+        "400":
+          description: Invalid or unavailable destination chapter
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "401":
+          description: Authentication required
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "403":
+          description: Master administrator access required or protected target
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "404":
+          description: Member not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
+        "409":
+          description: Member or chapter changed during the request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
   /admin/members/{memberId}/activity:
     get:
       operationId: getMemberActivity
@@ -811,7 +856,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [delete_post, feature_post, unfeature_post, approve_member, deny_member, ban_member, delete_member, promote_admin, demote_admin, update_settings, update_guidelines]
+            enum: [delete_post, feature_post, unfeature_post, approve_member, deny_member, ban_member, delete_member, promote_admin, demote_admin, update_member_chapter, update_settings, update_guidelines]
       responses:
         "200":
           description: Moderation audit history
@@ -1269,6 +1314,11 @@ components:
       required: [role]
       properties:
         role: { type: string, enum: [member, admin] }
+    AdminMemberChapterUpdate:
+      type: object
+      required: [chapter]
+      properties:
+        chapter: { type: string, minLength: 1, maxLength: 160 }
     MemberRoleTarget:
       type: object
       required: [id, email, name, chapter, role, status, updatedAt]
@@ -1285,6 +1335,22 @@ components:
       required: [member]
       properties:
         member: { $ref: "#/components/schemas/MemberRoleTarget" }
+    MemberChapterUpdateTarget:
+      type: object
+      required: [id, email, name, chapter, role, status, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        name: { type: string }
+        chapter: { type: string }
+        role: { type: string, enum: [member, admin] }
+        status: { type: string, enum: [pending, active, banned] }
+        updatedAt: { type: string, format: date-time }
+    MemberChapterUpdateResult:
+      type: object
+      required: [member]
+      properties:
+        member: { $ref: "#/components/schemas/MemberChapterUpdateTarget" }
     PendingMember:
       type: object
       required: [id, name, email, title, company, chapter, createdAt]

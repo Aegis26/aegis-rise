@@ -21,6 +21,7 @@ import type {
 
 import type {
   AdminChapterList,
+  AdminMemberChapterUpdate,
   AdminMemberList,
   AdminMemberRoleUpdate,
   AdminOverview,
@@ -55,6 +56,7 @@ import type {
   LoginResult,
   MemberActivityResult,
   MemberAnalyticsResult,
+  MemberChapterUpdateResult,
   MemberDenialResult,
   MemberList,
   MemberModerationResult,
@@ -2802,6 +2804,72 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
         TContext
       > => {
       return useMutation(getUpdateMemberRoleMutationOptions(options));
+    }
+
+export const getUpdateMemberChapterUrl = (memberId: string,) => {
+
+
+
+
+  return `/api/admin/members/${memberId}/chapter`
+}
+
+export const updateMemberChapter = async (memberId: string,
+    adminMemberChapterUpdate: AdminMemberChapterUpdate, options?: Parameters<typeof customFetch>[1]): Promise<MemberChapterUpdateResult> => {
+
+  return customFetch<MemberChapterUpdateResult>(getUpdateMemberChapterUrl(memberId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(adminMemberChapterUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateMemberChapterMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMemberChapter>>, TError,{memberId: string;data: BodyType<AdminMemberChapterUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateMemberChapter>>, TError,{memberId: string;data: BodyType<AdminMemberChapterUpdate>}, TContext> => {
+
+const mutationKey = ['updateMemberChapter'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateMemberChapter>>, {memberId: string;data: BodyType<AdminMemberChapterUpdate>}> = (props) => {
+          const {memberId,data} = props ?? {};
+
+          return  updateMemberChapter(memberId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateMemberChapterMutationResult = NonNullable<Awaited<ReturnType<typeof updateMemberChapter>>>
+    export type UpdateMemberChapterMutationBody = BodyType<AdminMemberChapterUpdate>
+    export type UpdateMemberChapterMutationError = ErrorType<ErrorResponse>
+
+    export const useUpdateMemberChapter = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateMemberChapter>>, TError,{memberId: string;data: BodyType<AdminMemberChapterUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateMemberChapter>>,
+        TError,
+        {memberId: string;data: BodyType<AdminMemberChapterUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateMemberChapterMutationOptions(options));
     }
 
 export const getGetMemberActivityUrl = (memberId: string,) => {

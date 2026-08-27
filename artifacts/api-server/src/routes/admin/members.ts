@@ -21,6 +21,7 @@ import {
   type DbTransaction,
   ensureChapterAccess,
   lockAdminChapter,
+  lockAdminChapters,
   optionalChapterSchema,
   optionalReasonBodySchema,
   parseAdminResourceId,
@@ -37,6 +38,9 @@ const listMembersSchema = adminPaginationSchema.extend({
 });
 const memberRoleUpdateSchema = z.object({
   role: z.enum(["member", "admin"]),
+});
+const memberChapterUpdateSchema = z.object({
+  chapter: z.string().trim().min(1).max(160),
 });
 
 const memberSummarySelection = {
@@ -100,7 +104,11 @@ async function loadManagedMember(
 function ensureMemberMutationAccess(
   admin: AuthenticatedUser,
   target: ManagedMember,
-  options: { blockSelf?: boolean; blockSuperAdmin?: boolean } = {},
+  options: {
+    blockSelf?: boolean;
+    blockSuperAdmin?: boolean;
+    superAdminMessage?: string;
+  } = {},
 ): void {
   ensureChapterAccess(admin, target.chapter);
 
@@ -113,7 +121,8 @@ function ensureMemberMutationAccess(
   if (options.blockSuperAdmin && target.role === "super_admin") {
     throw new HttpError(
       403,
-      "Super-admin accounts cannot be banned, denied, or deleted.",
+      options.superAdminMessage ??
+        "Super-admin accounts cannot be banned, denied, or deleted.",
     );
   }
 }
@@ -593,6 +602,97 @@ router.patch(
             role === "admin"
               ? "Assigned chapter-admin permissions."
               : "Removed chapter-admin permissions.",
+        });
+
+        return updatedMember;
+      });
+
+      response.json({ member });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+router.patch(
+  "/admin/members/:id/chapter",
+  requireAdmin,
+  async (request, response, next) => {
+    try {
+      const memberId = parseAdminResourceId(request.params.id, "member");
+      const { chapter } = memberChapterUpdateSchema.parse(request.body);
+      const admin = request.user!;
+      requireSuperAdmin(admin);
+
+      const member = await db.transaction(async (transaction) => {
+        const initialTarget = await loadManagedMember(transaction, memberId);
+        if (!initialTarget) {
+          throw new HttpError(404, "Member not found.");
+        }
+        ensureMemberMutationAccess(admin, initialTarget, {
+          blockSuperAdmin: true,
+          superAdminMessage:
+            "Super-admin accounts cannot be reassigned to another chapter.",
+        });
+        if (initialTarget.chapter === chapter) {
+          throw new HttpError(
+            400,
+            "Member is already assigned to that chapter.",
+          );
+        }
+
+        await lockAdminChapters(transaction, [initialTarget.chapter, chapter]);
+        await lockAdminChapter(transaction, admin, initialTarget.chapter);
+
+        const target = await loadManagedMember(transaction, memberId);
+        if (!target || target.chapter !== initialTarget.chapter) {
+          throw new HttpError(
+            409,
+            "The member or chapter changed during this request. Please try again.",
+          );
+        }
+        ensureMemberMutationAccess(admin, target, {
+          blockSuperAdmin: true,
+          superAdminMessage:
+            "Super-admin accounts cannot be reassigned to another chapter.",
+        });
+
+        const [[destinationConfig], [destinationMember]] = await Promise.all([
+          transaction
+            .select({ nameReserved: chapterConfigsTable.nameReserved })
+            .from(chapterConfigsTable)
+            .where(eq(chapterConfigsTable.chapterName, chapter))
+            .limit(1),
+          transaction
+            .select({ id: membersTable.id })
+            .from(membersTable)
+            .where(eq(membersTable.chapter, chapter))
+            .limit(1),
+        ]);
+        if (
+          destinationConfig?.nameReserved ||
+          (!destinationConfig && !destinationMember)
+        ) {
+          throw new HttpError(
+            400,
+            "Choose an existing, non-reserved chapter.",
+          );
+        }
+
+        const [updatedMember] = await transaction
+          .update(membersTable)
+          .set({ chapter, updatedAt: new Date() })
+          .where(eq(membersTable.id, memberId))
+          .returning(managedMemberSelection);
+
+        await recordModAction(transaction, {
+          admin,
+          actionType: "update_member_chapter",
+          targetType: "member",
+          targetId: target.id,
+          targetLabel: target.name,
+          chapter,
+          reason: `Moved from "${target.chapter}" to "${chapter}".`,
         });
 
         return updatedMember;

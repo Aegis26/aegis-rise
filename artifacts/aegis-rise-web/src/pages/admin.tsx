@@ -10,6 +10,7 @@ import {
   useBanMember,
   useDeleteMember,
   useUpdateMemberRole,
+  useUpdateMemberChapter,
   useGetChapterSettings,
   useUpdateChapterSettings,
   useListAdminPosts,
@@ -32,6 +33,12 @@ import {
   getListAdminChaptersQueryKey,
   getListAdminMembersQueryKey,
   getListPendingMembersQueryKey,
+  getGetMemberActivityQueryKey,
+  getGetPostAnalyticsQueryKey,
+  getGetMemberAnalyticsQueryKey,
+  getGetShareAnalyticsQueryKey,
+  getGetPlatformAnalyticsQueryKey,
+  getGetShareTimelineQueryKey,
   type ChapterSettingsInput,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -376,12 +383,26 @@ function MembersTab({
     chapter: string;
     role: "member" | "admin";
   } | null>(null);
+  const [memberPendingChapterChange, setMemberPendingChapterChange] = useState<{
+    id: string;
+    name: string;
+    currentChapter: string;
+    nextChapter: string;
+    role: "member" | "admin";
+  } | null>(null);
   const [deleteConfirmationText, setDeleteConfirmationText] = useState("");
   const params = chapter ? { chapter } : undefined;
 
   const { data: membersData, isLoading } = useListAdminMembers(params, {
     query: { queryKey: getListAdminMembersQueryKey(params) }
   });
+  const { data: chaptersData, isLoading: chaptersLoading } =
+    useListAdminChapters({
+      query: {
+        queryKey: getListAdminChaptersQueryKey(),
+        enabled: isSuperAdmin,
+      },
+    });
 
   const banMutation = useBanMember({
     mutation: {
@@ -431,6 +452,62 @@ function MembersTab({
     },
   });
 
+  const chapterMutation = useUpdateMemberChapter({
+    mutation: {
+      onSuccess: (result) => {
+        const previousChapter =
+          memberPendingChapterChange?.currentChapter ?? "their previous chapter";
+        toast({
+          title: "Member chapter updated",
+          description: `${result.member.name} moved from ${previousChapter} to ${result.member.chapter}.`,
+        });
+        queryClient.invalidateQueries({
+          queryKey: getListAdminMembersQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getListPendingMembersQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getListAdminChaptersQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetAdminOverviewQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getListModerationLogsQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getListAdminPostsQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetPostAnalyticsQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetMemberAnalyticsQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetShareAnalyticsQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetPlatformAnalyticsQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetShareTimelineQueryKey(),
+        });
+        queryClient.invalidateQueries({
+          queryKey: getGetMemberActivityQueryKey(result.member.id),
+        });
+        setMemberPendingChapterChange(null);
+      },
+      onError: (err: any) =>
+        toast({
+          title: "Failed to update chapter",
+          description: err.message,
+          variant: "destructive",
+        }),
+    },
+  });
+
   const handleBan = (memberId: string) => {
     if (confirm("Are you sure you want to ban this member? This action is not easily reversible.")) {
       banMutation.mutate({ memberId, data: { reason: "Admin discretion." } });
@@ -449,6 +526,14 @@ function MembersTab({
       data: {
         role: memberPendingRoleChange.role === "admin" ? "member" : "admin",
       },
+    });
+  };
+
+  const handleConfirmChapterChange = () => {
+    if (!memberPendingChapterChange) return;
+    chapterMutation.mutate({
+      memberId: memberPendingChapterChange.id,
+      data: { chapter: memberPendingChapterChange.nextChapter },
     });
   };
 
@@ -500,7 +585,44 @@ function MembersTab({
                       </div>
                     </td>
                     {isSuperAdmin && (
-                      <td className="px-4 py-3">{member.chapter}</td>
+                      <td className="px-4 py-3">
+                        {member.role === "super_admin" ? (
+                          <span>{member.chapter}</span>
+                        ) : (
+                          <select
+                            aria-label={`Chapter for ${member.name}`}
+                            className="flex h-9 min-w-44 rounded-md border border-input bg-background px-3 py-1 text-sm"
+                            value={member.chapter}
+                            onChange={(event) => {
+                              const nextChapter = event.target.value;
+                              if (nextChapter === member.chapter) return;
+                              setMemberPendingChapterChange({
+                                id: member.id,
+                                name: member.name,
+                                currentChapter: member.chapter,
+                                nextChapter,
+                                role:
+                                  member.role === "admin" ? "admin" : "member",
+                              });
+                            }}
+                            disabled={
+                              chaptersLoading || chapterMutation.isPending
+                            }
+                            data-testid={`select-member-chapter-${member.id}`}
+                          >
+                            {(chaptersData?.chapters ?? []).map(
+                              (chapterOption) => (
+                                <option
+                                  key={chapterOption.name}
+                                  value={chapterOption.name}
+                                >
+                                  {chapterOption.name}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        )}
+                      </td>
                     )}
                     <td className="px-4 py-3">
                       <Badge variant={member.role === "super_admin" ? "default" : "outline"}>
@@ -663,6 +785,58 @@ function MembersTab({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      )}
+
+      {memberPendingChapterChange && (
+        <AlertDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setMemberPendingChapterChange(null);
+          }}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                Move {memberPendingChapterChange.name} to{" "}
+                {memberPendingChapterChange.nextChapter}?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                This changes the chapter directory, feed, settings, and
+                administration scope available to{" "}
+                {memberPendingChapterChange.name}. Their account status, posts,
+                shares, social connections, and{" "}
+                {memberPendingChapterChange.role === "admin"
+                  ? "chapter-admin role"
+                  : "member role"}{" "}
+                will stay the same.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <div className="rounded-md border border-border bg-muted/30 px-4 py-3 text-sm">
+              <span className="font-medium">
+                {memberPendingChapterChange.currentChapter}
+              </span>{" "}
+              <span className="text-muted-foreground">→</span>{" "}
+              <span className="font-medium">
+                {memberPendingChapterChange.nextChapter}
+              </span>
+            </div>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-chapter">
+                Cancel
+              </AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(event) => {
+                  event.preventDefault();
+                  handleConfirmChapterChange();
+                }}
+                disabled={chapterMutation.isPending}
+                data-testid="button-confirm-chapter"
+              >
+                {chapterMutation.isPending ? "Moving..." : "Move member"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       )}
     </Card>
   );
@@ -917,7 +1091,37 @@ function ActivityTab({ chapter }: { chapter?: string }) {
   const params = chapter ? { limit: 50, chapter } : { limit: 50 };
   const { data, isLoading } = useListModerationLogs(params);
   if (isLoading) return <LoadingCard />;
-  return <Card><CardHeader><CardTitle>Recent admin activity</CardTitle><CardDescription>{chapter ? `Moderation and membership actions in ${chapter}.` : "Moderation and membership actions across every chapter."}</CardDescription></CardHeader><CardContent className="space-y-3">{(data?.logs ?? []).map((log) => <div key={log.id} className="border-l-2 border-primary pl-3"><p className="font-medium capitalize">{log.action.replaceAll("_", " ")}</p><p className="text-sm text-muted-foreground">{log.chapter} · {new Date(log.date).toLocaleString()}</p></div>)}{!data?.logs.length && <p className="text-muted-foreground">No activity recorded yet.</p>}</CardContent></Card>;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Recent admin activity</CardTitle>
+        <CardDescription>
+          {chapter
+            ? `Moderation and membership actions in ${chapter}.`
+            : "Moderation and membership actions across every chapter."}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {(data?.logs ?? []).map((log) => (
+          <div key={log.id} className="border-l-2 border-primary pl-3">
+            <p className="font-medium capitalize">
+              {log.action.replaceAll("_", " ")}
+            </p>
+            <p className="text-sm">{log.target}</p>
+            {log.reason && (
+              <p className="text-sm text-muted-foreground">{log.reason}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              {log.chapter} · {new Date(log.date).toLocaleString()}
+            </p>
+          </div>
+        ))}
+        {!data?.logs.length && (
+          <p className="text-muted-foreground">No activity recorded yet.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function ChapterSelectionRequired({ area }: { area: string }) {
