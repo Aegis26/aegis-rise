@@ -156,7 +156,7 @@ export default function PublicProfile({ memberId }: { memberId: string }) {
                  <MapPin className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
                  <div>
                    <p className="text-sm font-medium">Chapter</p>
-                   <p className="text-sm text-muted-foreground">{(member as any).chapter || "Aegis Rise"}</p>
+                    <p className="text-sm text-muted-foreground">{member.chapter}</p>
                  </div>
                </div>
                

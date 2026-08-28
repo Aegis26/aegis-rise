@@ -219,6 +219,7 @@ export const GetMemberResponse = zod.object({
   "name": zod.string(),
   "title": zod.string(),
   "company": zod.string(),
+  "chapter": zod.string(),
   "bio": zod.string().nullish(),
   "profilePictureUrl": zod.string().url().nullish(),
   "primaryColor": zod.string(),

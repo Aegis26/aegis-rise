@@ -1034,12 +1034,13 @@ components:
           items: { $ref: "#/components/schemas/MemberSummary" }
     PublicMember:
       type: object
-      required: [id, name, title, company, primaryColor, accentColor, profileBackgroundColor, profileWallpaperScale]
+      required: [id, name, title, company, chapter, primaryColor, accentColor, profileBackgroundColor, profileWallpaperScale]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
         title: { type: string }
         company: { type: string }
+        chapter: { type: string }
         bio: { type: [string, "null"] }
         profilePictureUrl: { type: [string, "null"], format: uri }
         primaryColor: { type: string }

@@ -206,6 +206,7 @@ export interface PublicMember {
   name: string;
   title: string;
   company: string;
+  chapter: string;
   /** @nullable */
   bio?: string | null;
   /** @nullable */

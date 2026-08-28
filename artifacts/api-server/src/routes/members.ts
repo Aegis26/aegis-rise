@@ -167,6 +167,7 @@ router.get("/members/:id", requireAuth, async (request, response, next) => {
         name: membersTable.name,
         title: membersTable.title,
         company: membersTable.company,
+        chapter: membersTable.chapter,
         bio: membersTable.bio,
         profilePictureUrl: membersTable.profilePictureUrl,
         primaryColor: membersTable.primaryColor,
