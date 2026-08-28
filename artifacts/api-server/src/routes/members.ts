@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, ne } from "drizzle-orm";
 import { z } from "zod/v4";
 import { db, membersTable } from "../db";
 import { isMemberProfileWallpaperUrl } from "../lib/r2";
@@ -48,6 +48,7 @@ router.get("/members", requireAuth, async (request, response, next) => {
         and(
           eq(membersTable.status, "active"),
           eq(membersTable.chapter, request.user!.chapter),
+          ne(membersTable.id, request.user!.id),
         ),
       )
       .orderBy(asc(membersTable.name));

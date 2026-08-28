@@ -12,12 +12,14 @@ import {
   useListSocialAccounts,
   useCreateSocialConnection,
   useDisconnectSocialAccount,
+  useListMembers,
   getListMemberPostsQueryKey,
   getGetCurrentMemberQueryKey,
   getListSocialAccountsQueryKey,
+  getListMembersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug, Settings } from "lucide-react";
+import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug, Settings, Users, ChevronDown } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { PostGallery } from "@/components/feed/post-gallery";
 import { ProfileHero } from "./components/profile-hero";
 
@@ -125,6 +128,14 @@ export default function Profile() {
   const { data: socialAccountsData } = useListSocialAccounts({
     query: { queryKey: getListSocialAccountsQueryKey() },
   });
+  const { data: chapterMembersData, isLoading: chapterMembersLoading, isError: chapterMembersError } =
+    useListMembers({
+      query: {
+        enabled: Boolean(memberData?.member.id),
+        queryKey: getListMembersQueryKey(),
+      },
+    });
+  const [visibleChapterMemberCount, setVisibleChapterMemberCount] = useState(9);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -181,6 +192,10 @@ export default function Profile() {
 
     return () => URL.revokeObjectURL(previewUrl);
   }, [wallpaperFile]);
+
+  useEffect(() => {
+    setVisibleChapterMemberCount(9);
+  }, [memberData?.member.chapter]);
 
   const updateMutation = useUpdateCurrentMember({
     mutation: {
@@ -338,6 +353,13 @@ export default function Profile() {
   }
 
   const member = memberData?.member;
+  const chapterMembers = (chapterMembersData?.members ?? []).filter(
+    (chapterMember) => chapterMember.id !== member?.id,
+  );
+  const visibleChapterMembers = chapterMembers.slice(
+    0,
+    visibleChapterMemberCount,
+  );
   const posts = memberPosts?.posts ?? [];
   const shareCount = posts.reduce((total, post) => total + post.shareCount, 0);
   const socialAccounts = socialAccountsData?.accounts ?? [];
@@ -543,6 +565,108 @@ export default function Profile() {
               </div>
             </CardContent>
           </Card>
+
+          {!isProfileSettings && (
+            <Card data-testid="chapter-members-section">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Users className="h-5 w-5 text-primary" />
+                  Chapter Members
+                </CardTitle>
+                <CardDescription>
+                  Connect with members in {member?.chapter}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {chapterMembersLoading ? (
+                  <div
+                    className="grid grid-cols-3 gap-2"
+                    data-testid="chapter-members-loading"
+                  >
+                    {Array.from({ length: 9 }).map((_, index) => (
+                      <Skeleton
+                        key={index}
+                        className="h-28 w-full rounded-lg"
+                      />
+                    ))}
+                  </div>
+                ) : chapterMembersError ? (
+                  <p
+                    className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+                    data-testid="chapter-members-error"
+                  >
+                    Chapter members could not be loaded. Please refresh and try
+                    again.
+                  </p>
+                ) : chapterMembers.length === 0 ? (
+                  <p
+                    className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground"
+                    data-testid="chapter-members-empty"
+                  >
+                    You are currently the only active member in this chapter.
+                  </p>
+                ) : (
+                  <>
+                    <div
+                      className="grid grid-cols-3 gap-2"
+                      data-testid="chapter-members-grid"
+                    >
+                      {visibleChapterMembers.map((chapterMember) => (
+                        <Link
+                          key={chapterMember.id}
+                          href={`/members/${chapterMember.id}`}
+                          aria-label={`View ${chapterMember.name}'s profile`}
+                          data-testid={`chapter-member-card-${chapterMember.id}`}
+                          className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                        >
+                          <Card className="h-full overflow-hidden border-border/80 bg-card/70 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/60 group-hover:bg-card group-hover:shadow-md group-hover:ring-1 group-hover:ring-primary/40">
+                            <CardContent className="flex h-full min-h-28 flex-col items-center justify-center gap-1.5 p-2 text-center">
+                              <Avatar className="h-10 w-10 border border-border transition-transform duration-200 group-hover:scale-105">
+                                <AvatarImage
+                                  src={chapterMember.profilePictureUrl ?? ""}
+                                  alt=""
+                                />
+                                <AvatarFallback className="bg-primary/10 text-sm font-semibold text-primary">
+                                  {chapterMember.name.charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div className="w-full min-w-0">
+                                <p className="truncate text-xs font-semibold">
+                                  {chapterMember.name}
+                                </p>
+                                <p className="truncate text-[11px] text-muted-foreground">
+                                  {chapterMember.title}
+                                </p>
+                                <p className="truncate text-[11px] text-muted-foreground/80">
+                                  {chapterMember.company}
+                                </p>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </Link>
+                      ))}
+                    </div>
+                    {visibleChapterMemberCount < chapterMembers.length && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={() =>
+                          setVisibleChapterMemberCount(
+                            (count) => count + 9,
+                          )
+                        }
+                        data-testid="button-show-more-chapter-members"
+                      >
+                        Show More
+                        <ChevronDown className="ml-2 h-4 w-4" />
+                      </Button>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <div className="md:col-span-2 space-y-6">
