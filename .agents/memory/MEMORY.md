@@ -13,3 +13,4 @@
 - [Profile wallpaper security](profile-wallpaper-security.md) — public wallpapers must be validated, member-owned storage assets; keep public profiles on a presentation-only allowlist.
 - [API server codegen workflow](api-server-codegen-workflow.md) — after any backend route/enum change, restart the API server workflow explicitly; its dev command doesn't hot-reload.
 - [Authenticated query cache boundaries](authenticated-query-cache-boundaries.md) — clear protected client caches whenever the authenticated identity or privilege level changes.
+- [Security rate limits](security-rate-limits.md) — enforce credential-changing limits in shared storage with atomic per-member accounting, not process memory.

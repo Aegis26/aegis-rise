@@ -12,6 +12,7 @@ import {
   useListSocialAccounts,
   useCreateSocialConnection,
   useDisconnectSocialAccount,
+   useChangePassword,
   useListMembers,
   getListMemberPostsQueryKey,
   getGetCurrentMemberQueryKey,
@@ -19,7 +20,7 @@ import {
   getListMembersQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug, Settings, Users, ChevronDown } from "lucide-react";
+import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug, Settings, Users, ChevronDown, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -59,6 +60,67 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
 type SocialPlatform = ProfileFormValues["preferredPostPlatforms"][number];
+
+const passwordChangeSchema = z
+  .object({
+    currentPassword: z.string().min(1, "Current password is required."),
+    newPassword: z
+      .string()
+      .min(8, "New password must be at least 8 characters.")
+      .max(72, "New password must be 72 characters or fewer.")
+      .refine(
+        (value) => new TextEncoder().encode(value).length <= 72,
+        "New password must be at most 72 bytes when UTF-8 encoded.",
+      )
+      .refine((value) => /[A-Z]/.test(value), "Add an uppercase letter.")
+      .refine((value) => /[a-z]/.test(value), "Add a lowercase letter.")
+      .refine((value) => /[0-9]/.test(value), "Add a number.")
+      .refine((value) => /[^A-Za-z0-9]/.test(value), "Add a special character."),
+    confirmNewPassword: z
+      .string()
+      .min(1, "Please confirm your new password."),
+  })
+  .superRefine((values, context) => {
+    if (
+      values.currentPassword &&
+      values.newPassword &&
+      values.currentPassword === values.newPassword
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["newPassword"],
+        message: "New password must be different from your current password.",
+      });
+    }
+    if (
+      values.confirmNewPassword &&
+      values.newPassword !== values.confirmNewPassword
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["confirmNewPassword"],
+        message: "New passwords do not match.",
+      });
+    }
+  });
+
+type PasswordChangeFormValues = z.infer<typeof passwordChangeSchema>;
+
+const passwordRequirements = [
+  { label: "At least 8 characters", test: (value: string) => value.length >= 8 },
+  { label: "One uppercase letter", test: (value: string) => /[A-Z]/.test(value) },
+  { label: "One lowercase letter", test: (value: string) => /[a-z]/.test(value) },
+  { label: "One number", test: (value: string) => /[0-9]/.test(value) },
+  {
+    label: "One special character",
+    test: (value: string) => /[^A-Za-z0-9]/.test(value),
+  },
+  {
+    label: "At most 72 UTF-8 bytes",
+    test: (value: string) =>
+      value.length > 0 && new TextEncoder().encode(value).length <= 72,
+  },
+] as const;
 
 const SOCIAL_PLATFORMS: Array<{
   value: SocialPlatform;
@@ -119,6 +181,10 @@ export default function Profile() {
     null,
   );
   const [removeWallpaper, setRemoveWallpaper] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState<string | null>(
+    null,
+  );
+  const [passwordChangeSuccess, setPasswordChangeSuccess] = useState(false);
 
   const { data: memberData, isLoading } = useGetCurrentMember({
     query: {
@@ -153,6 +219,31 @@ export default function Profile() {
       preferredPostPlatforms: [],
     },
   });
+  const passwordChangeForm = useForm<PasswordChangeFormValues>({
+    resolver: zodResolver(passwordChangeSchema),
+    mode: "onChange",
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmNewPassword: "",
+    },
+  });
+  const newPasswordValue = passwordChangeForm.watch("newPassword");
+  const passwordRequirementResults = passwordRequirements.map((requirement) => ({
+    ...requirement,
+    met: requirement.test(newPasswordValue),
+  }));
+  const passwordStrength = passwordRequirementResults.filter(
+    (requirement) => requirement.met,
+  ).length;
+  const passwordStrengthLabel =
+    passwordStrength === 0
+      ? "Not started"
+      : passwordStrength <= 2
+        ? "Weak"
+        : passwordStrength < passwordRequirements.length
+          ? "Good"
+          : "Strong";
   const { data: memberPosts } = useListMemberPosts(
     memberData?.member.id ?? "",
     { limit: 100 },
@@ -216,6 +307,27 @@ export default function Profile() {
         toast({ title: "Update failed", description: err.message, variant: "destructive" });
       }
     }
+  });
+  const changePasswordMutation = useChangePassword({
+    mutation: {
+      onSuccess: () => {
+        passwordChangeForm.reset();
+        setPasswordChangeError(null);
+        setPasswordChangeSuccess(true);
+        toast({ title: "Password changed successfully" });
+      },
+      onError: (error: Error) => {
+        const message =
+          error.message || "Your password could not be changed. Please try again.";
+        setPasswordChangeSuccess(false);
+        setPasswordChangeError(message);
+        toast({
+          title: "Password change failed",
+          description: message,
+          variant: "destructive",
+        });
+      },
+    },
   });
   const connectSocialMutation = useCreateSocialConnection({
     mutation: {
@@ -317,6 +429,11 @@ export default function Profile() {
     } catch (err: any) {
       toast({ title: "Failed to upload wallpaper", description: err.message, variant: "destructive" });
     }
+  };
+  const onPasswordChange = (data: PasswordChangeFormValues) => {
+    setPasswordChangeSuccess(false);
+    setPasswordChangeError(null);
+    changePasswordMutation.mutate({ data });
   };
   const startSocialConnection = (platform: SocialPlatform) => {
     setConnectingPlatform(platform);
@@ -565,6 +682,196 @@ export default function Profile() {
               </div>
             </CardContent>
           </Card>
+
+          {isProfileSettings && (
+            <Card data-testid="security-section">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <ShieldCheck className="h-5 w-5 text-primary" />
+                  Security
+                </CardTitle>
+                <CardDescription>
+                  Change your password to keep your account protected.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Form {...passwordChangeForm}>
+                  <form
+                    onSubmit={passwordChangeForm.handleSubmit(onPasswordChange)}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={passwordChangeForm.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Current Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="password"
+                              autoComplete="current-password"
+                              onChange={(event) => {
+                                field.onChange(event);
+                                setPasswordChangeSuccess(false);
+                                setPasswordChangeError(null);
+                              }}
+                              data-testid="input-current-password"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={passwordChangeForm.control}
+                      name="newPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>New Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="password"
+                              autoComplete="new-password"
+                              onChange={(event) => {
+                                field.onChange(event);
+                                setPasswordChangeSuccess(false);
+                                setPasswordChangeError(null);
+                              }}
+                              data-testid="input-new-password"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <div
+                      className="space-y-3 rounded-lg border border-border/80 bg-muted/20 p-3"
+                      aria-live="polite"
+                    >
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="font-medium">Password strength</span>
+                        <span
+                          className="text-muted-foreground"
+                          data-testid="password-strength-label"
+                        >
+                          {passwordStrengthLabel}
+                        </span>
+                      </div>
+                      <div
+                        className="h-2 overflow-hidden rounded-full bg-muted"
+                        role="progressbar"
+                        aria-label="Password strength"
+                        aria-valuemin={0}
+                        aria-valuemax={passwordRequirements.length}
+                        aria-valuenow={passwordStrength}
+                        aria-valuetext={passwordStrengthLabel}
+                        data-testid="password-strength-meter"
+                      >
+                        <div
+                          className={`h-full rounded-full transition-all ${
+                            passwordStrength <= 2
+                              ? "bg-destructive"
+                              : passwordStrength <= 4
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
+                          }`}
+                          style={{
+                            width: `${
+                              (passwordStrength / passwordRequirements.length) *
+                              100
+                            }%`,
+                          }}
+                        />
+                      </div>
+                      <ul className="space-y-1.5 text-xs">
+                        {passwordRequirementResults.map((requirement) => (
+                          <li
+                            key={requirement.label}
+                            className={`flex items-center gap-2 ${
+                              requirement.met
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-muted-foreground"
+                            }`}
+                          >
+                            <CheckCircle2
+                              className={`h-3.5 w-3.5 ${
+                                requirement.met ? "" : "opacity-35"
+                              }`}
+                              aria-hidden="true"
+                            />
+                            {requirement.label}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <FormField
+                      control={passwordChangeForm.control}
+                      name="confirmNewPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Confirm New Password</FormLabel>
+                          <FormControl>
+                            <Input
+                              {...field}
+                              type="password"
+                              autoComplete="new-password"
+                              onChange={(event) => {
+                                field.onChange(event);
+                                setPasswordChangeSuccess(false);
+                                setPasswordChangeError(null);
+                              }}
+                              data-testid="input-confirm-new-password"
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    {passwordChangeError && (
+                      <p
+                        className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive"
+                        role="alert"
+                        data-testid="password-change-error"
+                      >
+                        {passwordChangeError}
+                      </p>
+                    )}
+
+                    {passwordChangeSuccess && (
+                      <p
+                        className="rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-300"
+                        role="status"
+                        data-testid="password-change-success"
+                      >
+                        Password changed successfully
+                      </p>
+                    )}
+
+                    <Button
+                      type="submit"
+                      className="w-full"
+                      disabled={
+                        changePasswordMutation.isPending ||
+                        !passwordChangeForm.formState.isValid
+                      }
+                      data-testid="button-change-password"
+                    >
+                      {changePasswordMutation.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Change Password
+                    </Button>
+                  </form>
+                </Form>
+              </CardContent>
+            </Card>
+          )}
 
           {!isProfileSettings && (
             <Card data-testid="chapter-members-section">

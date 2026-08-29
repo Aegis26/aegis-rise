@@ -81,6 +81,42 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/LoginResult"
+  /auth/change-password:
+    post:
+      operationId: changePassword
+      tags: [auth]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChangePasswordInput"
+      responses:
+        "200":
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          description: Invalid password change request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Current password is incorrect
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many password change attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /auth/logout:
     post:
       operationId: logout
@@ -952,6 +988,18 @@ components:
       properties:
         email: { type: string, format: email }
         password: { type: string }
+    ChangePasswordInput:
+      type: object
+      required: [currentPassword, newPassword, confirmNewPassword]
+      properties:
+        currentPassword: { type: string, minLength: 1 }
+        newPassword:
+          type: string
+          minLength: 8
+          maxLength: 72
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,72}$'
+          description: Must contain uppercase, lowercase, number, and special characters and be at most 72 UTF-8 bytes.
+        confirmNewPassword: { type: string, minLength: 1, maxLength: 72 }
     LoginResult:
       type: object
       required: [token, member]

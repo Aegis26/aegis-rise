@@ -20,6 +20,7 @@ export * from './adminPostStatus';
 export * from './authMember';
 export * from './authMemberRole';
 export * from './authMemberStatus';
+export * from './changePasswordInput';
 export * from './chapterParameter';
 export * from './chapterSettings';
 export * from './chapterSettingsInput';

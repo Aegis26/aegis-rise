@@ -106,6 +106,25 @@ export const membersTable = pgTable(
   ],
 );
 
+export const passwordChangeAttemptsTable = pgTable(
+  "password_change_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => membersTable.id, { onDelete: "cascade" }),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("password_change_attempts_member_time_idx").on(
+      table.memberId,
+      table.attemptedAt,
+    ),
+  ],
+);
+
 export const socialAccountsTable = pgTable(
   "social_accounts",
   {

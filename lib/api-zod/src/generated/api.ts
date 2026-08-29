@@ -66,6 +66,27 @@ export const LoginResponse = zod.object({
 })
 
 
+
+export const changePasswordBodyNewPasswordMin = 8;
+export const changePasswordBodyNewPasswordMax = 72;
+
+
+export const changePasswordBodyNewPasswordRegExp = new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,72}$');
+export const changePasswordBodyConfirmNewPasswordMax = 72;
+
+
+
+export const ChangePasswordBody = zod.object({
+  "currentPassword": zod.string().min(1),
+  "newPassword": zod.string().min(changePasswordBodyNewPasswordMin).max(changePasswordBodyNewPasswordMax).regex(changePasswordBodyNewPasswordRegExp).describe('Must contain uppercase, lowercase, number, and special characters and be at most 72 UTF-8 bytes.'),
+  "confirmNewPassword": zod.string().min(1).max(changePasswordBodyConfirmNewPasswordMax)
+})
+
+export const ChangePasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const LogoutResponse = zod.object({
   "message": zod.string()
 })
