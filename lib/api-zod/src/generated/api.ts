@@ -87,6 +87,41 @@ export const ChangePasswordResponse = zod.object({
 })
 
 
+export const forgotPasswordBodyEmailMax = 320;
+
+
+
+export const ForgotPasswordBody = zod.object({
+  "email": zod.string().email().max(forgotPasswordBodyEmailMax)
+})
+
+export const ForgotPasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
+export const resetPasswordBodyTokenMax = 256;
+
+export const resetPasswordBodyNewPasswordMin = 8;
+export const resetPasswordBodyNewPasswordMax = 72;
+
+
+export const resetPasswordBodyNewPasswordRegExp = new RegExp('^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,72}$');
+export const resetPasswordBodyConfirmNewPasswordMax = 72;
+
+
+
+export const ResetPasswordBody = zod.object({
+  "token": zod.string().min(1).max(resetPasswordBodyTokenMax),
+  "newPassword": zod.string().min(resetPasswordBodyNewPasswordMin).max(resetPasswordBodyNewPasswordMax).regex(resetPasswordBodyNewPasswordRegExp).describe('Must contain uppercase, lowercase, number, and special characters and be at most 72 UTF-8 bytes.'),
+  "confirmNewPassword": zod.string().min(1).max(resetPasswordBodyConfirmNewPasswordMax)
+})
+
+export const ResetPasswordResponse = zod.object({
+  "message": zod.string()
+})
+
+
 export const LogoutResponse = zod.object({
   "message": zod.string()
 })

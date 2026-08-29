@@ -55,6 +55,16 @@ export const modTargetTypeEnum = pgEnum("mod_target_type", [
   "member",
   "chapter",
 ]);
+export const passwordResetAuditEventEnum = pgEnum("password_reset_audit_event", [
+  "requested",
+  "rate_limited",
+  "email_sent",
+  "email_failed",
+  "completed",
+  "invalid_token",
+  "expired_token",
+  "used_token",
+]);
 
 const timestamps = {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -121,6 +131,68 @@ export const passwordChangeAttemptsTable = pgTable(
     index("password_change_attempts_member_time_idx").on(
       table.memberId,
       table.attemptedAt,
+    ),
+  ],
+);
+
+export const passwordResetAttemptsTable = pgTable(
+  "password_reset_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    emailHash: text("email_hash").notNull(),
+    attemptedAt: timestamp("attempted_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("password_reset_attempts_email_time_idx").on(
+      table.emailHash,
+      table.attemptedAt,
+    ),
+  ],
+);
+
+export const passwordResetTokensTable = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    memberId: uuid("member_id")
+      .notNull()
+      .references(() => membersTable.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("password_reset_tokens_member_idx").on(table.memberId),
+    index("password_reset_tokens_expiry_idx").on(table.expiresAt),
+  ],
+);
+
+export const passwordResetAuditTable = pgTable(
+  "password_reset_audit",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    memberId: uuid("member_id").references(() => membersTable.id, {
+      onDelete: "set null",
+    }),
+    emailHash: text("email_hash"),
+    event: passwordResetAuditEventEnum("event").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    index("password_reset_audit_member_time_idx").on(
+      table.memberId,
+      table.createdAt,
+    ),
+    index("password_reset_audit_email_time_idx").on(
+      table.emailHash,
+      table.createdAt,
     ),
   ],
 );
@@ -339,3 +411,5 @@ export type ThemePreference = Member["themePreference"];
 export type SharePlatform = Share["platform"];
 export type ModActionType = ModAction["actionType"];
 export type ModTargetType = ModAction["targetType"];
+export type PasswordResetAuditEvent =
+  (typeof passwordResetAuditEventEnum.enumValues)[number];

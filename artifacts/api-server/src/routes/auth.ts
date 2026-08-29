@@ -1,14 +1,22 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { createHash, randomBytes } from "node:crypto";
+import { and, eq, isNull, lt, sql } from "drizzle-orm";
+import type { Logger } from "pino";
 import { z } from "zod/v4";
 import {
   chapterConfigsTable,
   db,
   membersTable,
   passwordChangeAttemptsTable,
+  passwordResetAttemptsTable,
+  passwordResetAuditTable,
+  passwordResetTokensTable,
+  pool,
 } from "../db";
+import type { PasswordResetAuditEvent } from "@workspace/db";
 import { createAccessToken, requireAuth } from "../middleware/auth";
+import { sendPasswordResetEmail } from "../lib/password-reset-email";
 import { HttpError } from "../utils/errors";
 
 const router: IRouter = Router();
@@ -63,8 +71,27 @@ const changePasswordSchema = z
     message: "New passwords do not match.",
   });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().trim().email().max(320),
+});
+
+const resetPasswordSchema = z
+  .object({
+    token: z.string().trim().min(1).max(256),
+    newPassword: newPasswordSchema,
+    confirmNewPassword: z.string().min(1, "Please confirm your new password."),
+  })
+  .refine((input) => input.newPassword === input.confirmNewPassword, {
+    path: ["confirmNewPassword"],
+    message: "New passwords do not match.",
+  });
+
 const PASSWORD_CHANGE_LIMIT = 5;
 const PASSWORD_CHANGE_WINDOW_MS = 60 * 60 * 1000;
+const PASSWORD_RESET_LIMIT = 5;
+const PASSWORD_RESET_WINDOW_MS = 60 * 60 * 1000;
+const PASSWORD_RESET_TOKEN_LIFETIME_MS = 60 * 60 * 1000;
+const FORGOT_PASSWORD_CONFIRMATION = "Check your email for reset link";
 
 async function recordPasswordChangeAttempt(memberId: string): Promise<boolean> {
   const windowStart = new Date(Date.now() - PASSWORD_CHANGE_WINDOW_MS);
@@ -100,6 +127,135 @@ async function recordPasswordChangeAttempt(memberId: string): Promise<boolean> {
 
     return true;
   });
+}
+
+function hashResetValue(value: string): string {
+  return createHash("sha256").update(value).digest("hex");
+}
+
+async function writePasswordResetAudit(
+  event: PasswordResetAuditEvent,
+  emailHash: string | null,
+  memberId?: string,
+): Promise<void> {
+  await db.insert(passwordResetAuditTable).values({
+    event,
+    emailHash,
+    memberId,
+  });
+}
+
+async function recordPasswordResetAttempt(emailHash: string): Promise<boolean> {
+  const windowStart = new Date(Date.now() - PASSWORD_RESET_WINDOW_MS);
+
+  return db.transaction(async (transaction) => {
+    await transaction.execute(sql`
+      SELECT pg_advisory_xact_lock(
+        hashtextextended(${"password-reset:" + emailHash}, 0::bigint)
+      )
+    `);
+
+    await transaction
+      .delete(passwordResetAttemptsTable)
+      .where(
+        and(
+          eq(passwordResetAttemptsTable.emailHash, emailHash),
+          lt(passwordResetAttemptsTable.attemptedAt, windowStart),
+        ),
+      );
+
+    const [attemptCount] = await transaction
+      .select({ total: sql<number>`count(*)::int` })
+      .from(passwordResetAttemptsTable)
+      .where(eq(passwordResetAttemptsTable.emailHash, emailHash));
+
+    if (Number(attemptCount?.total ?? 0) >= PASSWORD_RESET_LIMIT) {
+      return false;
+    }
+
+    await transaction
+      .insert(passwordResetAttemptsTable)
+      .values({ emailHash });
+
+    return true;
+  });
+}
+
+function createResetUrl(token: string): string {
+  const baseUrl = process.env.APP_BASE_URL?.trim();
+  if (!baseUrl) {
+    throw new HttpError(500, "APP_BASE_URL is not configured.");
+  }
+
+  const resetUrl = new URL("/reset-password", baseUrl);
+  resetUrl.searchParams.set("token", token);
+  return resetUrl.toString();
+}
+
+async function processPasswordResetRequest(
+  email: string,
+  emailHash: string,
+  requestLogger: Logger,
+): Promise<void> {
+  const [member] = await db
+    .select({
+      id: membersTable.id,
+      email: membersTable.email,
+      status: membersTable.status,
+    })
+    .from(membersTable)
+    .where(eq(membersTable.email, email))
+    .limit(1);
+
+  if (!member || member.status !== "active") {
+    return;
+  }
+
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = hashResetValue(token);
+  const expiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_LIFETIME_MS);
+  const lockName = `password-reset-member:${member.id}`;
+  const lockClient = await pool.connect();
+  let tokenIssued = false;
+
+  try {
+    await lockClient.query(
+      "SELECT pg_advisory_lock(hashtextextended($1, 0::bigint))",
+      [lockName],
+    );
+    await db.insert(passwordResetTokensTable).values({
+      memberId: member.id,
+      tokenHash,
+      expiresAt,
+    });
+    tokenIssued = true;
+    await sendPasswordResetEmail(member.email, createResetUrl(token));
+    await writePasswordResetAudit("email_sent", emailHash, member.id);
+  } catch (error) {
+    if (tokenIssued) {
+      await db
+        .update(passwordResetTokensTable)
+        .set({ usedAt: new Date() })
+        .where(eq(passwordResetTokensTable.tokenHash, tokenHash));
+    }
+    await writePasswordResetAudit("email_failed", emailHash, member.id);
+    requestLogger.error(
+      {
+        err: error,
+        memberId: member.id,
+      },
+      "Password reset email delivery failed",
+    );
+  } finally {
+    try {
+      await lockClient.query(
+        "SELECT pg_advisory_unlock(hashtextextended($1, 0::bigint))",
+        [lockName],
+      );
+    } finally {
+      lockClient.release();
+    }
+  }
 }
 
 router.post("/auth/signup", async (request, response, next) => {
@@ -244,6 +400,190 @@ router.post("/auth/login", async (request, response, next) => {
         status: member.status,
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/auth/forgot-password", async (request, response, next) => {
+  try {
+    const input = forgotPasswordSchema.parse(request.body);
+    const email = input.email.toLowerCase();
+    const emailHash = hashResetValue(email);
+    const withinRateLimit = await recordPasswordResetAttempt(emailHash);
+
+    await writePasswordResetAudit(
+      withinRateLimit ? "requested" : "rate_limited",
+      emailHash,
+    );
+
+    if (!withinRateLimit) {
+      response.json({ message: FORGOT_PASSWORD_CONFIRMATION });
+      return;
+    }
+
+    response.json({ message: FORGOT_PASSWORD_CONFIRMATION });
+    setImmediate(() => {
+      void processPasswordResetRequest(email, emailHash, request.log).catch(
+        (error) => {
+          request.log.error(
+            { err: error },
+            "Password reset request processing failed",
+          );
+        },
+      );
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/auth/reset-password", async (request, response, next) => {
+  try {
+    const parsedInput = resetPasswordSchema.safeParse(request.body);
+    if (!parsedInput.success) {
+      throw new HttpError(
+        400,
+        parsedInput.error.issues[0]?.message ??
+          "Password does not meet the requirements.",
+      );
+    }
+
+    const { token, newPassword } = parsedInput.data;
+    const tokenHash = hashResetValue(token);
+    const now = new Date();
+
+    const [tokenOwner] = await db
+      .select({ memberId: passwordResetTokensTable.memberId })
+      .from(passwordResetTokensTable)
+      .where(eq(passwordResetTokensTable.tokenHash, tokenHash))
+      .limit(1);
+    if (!tokenOwner) {
+      await writePasswordResetAudit("invalid_token", null);
+      throw new HttpError(
+        400,
+        "This reset link is invalid or expired. Request a new one.",
+      );
+    }
+
+    const result = await db.transaction(async (transaction) => {
+      await transaction.execute(sql`
+        SELECT pg_advisory_xact_lock(
+          hashtextextended(${"password-reset-member:" + tokenOwner.memberId}, 0::bigint)
+        )
+      `);
+
+      const [resetToken] = await transaction
+        .select({
+          id: passwordResetTokensTable.id,
+          memberId: passwordResetTokensTable.memberId,
+          expiresAt: passwordResetTokensTable.expiresAt,
+          usedAt: passwordResetTokensTable.usedAt,
+          email: membersTable.email,
+          passwordHash: membersTable.passwordHash,
+        })
+        .from(passwordResetTokensTable)
+        .innerJoin(
+          membersTable,
+          eq(passwordResetTokensTable.memberId, membersTable.id),
+        )
+        .where(eq(passwordResetTokensTable.tokenHash, tokenHash))
+        .limit(1);
+
+      if (!resetToken) {
+        return { status: "invalid" as const };
+      }
+
+      const emailHash = hashResetValue(resetToken.email.toLowerCase());
+      if (resetToken.usedAt) {
+        return {
+          status: "used" as const,
+          emailHash,
+          memberId: resetToken.memberId,
+        };
+      }
+      if (resetToken.expiresAt.getTime() <= now.getTime()) {
+        return {
+          status: "expired" as const,
+          emailHash,
+          memberId: resetToken.memberId,
+        };
+      }
+      if (
+        resetToken.passwordHash &&
+        (await bcrypt.compare(newPassword, resetToken.passwordHash))
+      ) {
+        return {
+          status: "same-password" as const,
+          emailHash,
+          memberId: resetToken.memberId,
+        };
+      }
+
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+      await transaction
+        .update(membersTable)
+        .set({ passwordHash, updatedAt: now })
+        .where(eq(membersTable.id, resetToken.memberId));
+      await transaction
+        .update(passwordResetTokensTable)
+        .set({ usedAt: now })
+        .where(
+          and(
+            eq(passwordResetTokensTable.memberId, resetToken.memberId),
+            isNull(passwordResetTokensTable.usedAt),
+          ),
+        );
+
+      return {
+        status: "completed" as const,
+        emailHash,
+        memberId: resetToken.memberId,
+      };
+    });
+
+    if (result.status === "invalid") {
+      await writePasswordResetAudit("invalid_token", null);
+      throw new HttpError(
+        400,
+        "This reset link is invalid or expired. Request a new one.",
+      );
+    }
+    if (result.status === "used") {
+      await writePasswordResetAudit(
+        "used_token",
+        result.emailHash,
+        result.memberId,
+      );
+      throw new HttpError(
+        400,
+        "This reset link is invalid or expired. Request a new one.",
+      );
+    }
+    if (result.status === "expired") {
+      await writePasswordResetAudit(
+        "expired_token",
+        result.emailHash,
+        result.memberId,
+      );
+      throw new HttpError(
+        400,
+        "This reset link is invalid or expired. Request a new one.",
+      );
+    }
+    if (result.status === "same-password") {
+      throw new HttpError(
+        400,
+        "New password must be different from your current password.",
+      );
+    }
+
+    await writePasswordResetAudit(
+      "completed",
+      result.emailHash,
+      result.memberId,
+    );
+    response.json({ message: "Password reset successfully" });
   } catch (error) {
     next(error);
   }

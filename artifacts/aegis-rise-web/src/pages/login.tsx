@@ -138,6 +138,15 @@ export default function Login() {
                     </FormItem>
                   )}
                 />
+                <div className="-mt-2 text-right">
+                  <Link
+                    href="/forgot-password"
+                    className="text-[12px] font-medium text-[#00bfd3] transition-colors hover:text-white hover:underline"
+                    data-testid="link-forgot-password"
+                  >
+                    Forgot Password?
+                  </Link>
+                </div>
                 <Button
                   type="submit"
                   className="h-10 w-full rounded-md bg-[#168cf0] text-[13px] font-medium text-white shadow-[0_0_12px_rgba(22,140,240,0.2)] transition-colors hover:bg-[#0879d8]"

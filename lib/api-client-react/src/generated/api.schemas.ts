@@ -70,6 +70,31 @@ export interface ChangePasswordInput {
   confirmNewPassword: string;
 }
 
+export interface ForgotPasswordInput {
+  /** @maxLength 320 */
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  /**
+     * @minLength 1
+     * @maxLength 256
+     */
+  token: string;
+  /**
+     * Must contain uppercase, lowercase, number, and special characters and be at most 72 UTF-8 bytes.
+     * @minLength 8
+     * @maxLength 72
+     * @pattern ^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,72}$
+     */
+  newPassword: string;
+  /**
+     * @minLength 1
+     * @maxLength 72
+     */
+  confirmNewPassword: string;
+}
+
 export type AuthMemberRole = typeof AuthMemberRole[keyof typeof AuthMemberRole];
 
 

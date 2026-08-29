@@ -17,6 +17,8 @@ function validateProductionConfiguration(): void {
     "JWT_SECRET",
     "LINKEDIN_CLIENT_ID",
     "LINKEDIN_CLIENT_SECRET",
+    "RESEND_API_KEY",
+    "RESEND_FROM_EMAIL",
     "R2_ACCESS_KEY_ID",
     "R2_BUCKET_NAME",
     "R2_PUBLIC_URL",
@@ -34,8 +36,11 @@ function validateProductionConfiguration(): void {
   }
 
   const appBaseUrl = new URL(process.env.APP_BASE_URL!);
-  if (!["http:", "https:"].includes(appBaseUrl.protocol)) {
-    throw new Error("APP_BASE_URL must use HTTP or HTTPS in production.");
+  if (appBaseUrl.protocol !== "https:") {
+    throw new Error("APP_BASE_URL must use HTTPS in production.");
+  }
+  if (appBaseUrl.username || appBaseUrl.password) {
+    throw new Error("APP_BASE_URL must not include URL credentials.");
   }
 
   const publicR2Url = new URL(process.env.R2_PUBLIC_URL!);

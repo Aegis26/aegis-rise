@@ -14,3 +14,4 @@
 - [API server codegen workflow](api-server-codegen-workflow.md) — after any backend route/enum change, restart the API server workflow explicitly; its dev command doesn't hot-reload.
 - [Authenticated query cache boundaries](authenticated-query-cache-boundaries.md) — clear protected client caches whenever the authenticated identity or privilege level changes.
 - [Security rate limits](security-rate-limits.md) — enforce credential-changing limits in shared storage with atomic per-member accounting, not process memory.
+- [Password reset serialization](password-reset-serialization.md) — issue and consume reset tokens under one member lock so emailed links cannot lose races.
