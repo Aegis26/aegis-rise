@@ -3,6 +3,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { ArrowUpRight, Newspaper } from "lucide-react";
+import {
+  getProfileNewsSidebarState,
+  NEWS_ARTICLE_LINK_ATTRIBUTES,
+} from "./profile-news-sidebar-state";
 
 type ProfileNewsSidebarProps = {
   variant: "primary" | "alternative";
@@ -16,13 +20,14 @@ export function ProfileNewsSidebar({ variant }: ProfileNewsSidebarProps) {
       refetchInterval: 30 * 60 * 1000,
     },
   });
-  const title = variant === "primary" ? "Top Stories" : "More for You";
-  const description =
-    variant === "primary"
-      ? "Leading stories across your interests."
-      : "More recent coverage selected for you.";
+  const { title, description, articles, state } = getProfileNewsSidebarState({
+    variant,
+    data,
+    isLoading,
+    isError,
+  });
 
-  if (isLoading) {
+  if (state === "loading") {
     return (
       <Card>
         <CardHeader>
@@ -47,7 +52,7 @@ export function ProfileNewsSidebar({ variant }: ProfileNewsSidebarProps) {
     );
   }
 
-  if (isError) {
+  if (state === "error") {
     return (
       <Card>
         <CardHeader>
@@ -63,12 +68,6 @@ export function ProfileNewsSidebar({ variant }: ProfileNewsSidebarProps) {
     );
   }
 
-  const articles =
-    variant === "primary"
-      ? data?.articles ?? []
-      : data?.alternativeArticles ?? [];
-  const hasPreferences = Boolean(data?.categories.length);
-
   return (
     <Card data-testid={`news-sidebar-${variant}`}>
       <CardHeader>
@@ -77,11 +76,13 @@ export function ProfileNewsSidebar({ variant }: ProfileNewsSidebarProps) {
           {title}
         </CardTitle>
         <CardDescription>
-          {hasPreferences ? description : "Choose topics to build your feed."}
+          {state !== "choose_interests"
+            ? description
+            : "Choose topics to build your feed."}
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {!hasPreferences ? (
+        {state === "choose_interests" ? (
           <div className="space-y-3 rounded-lg border border-dashed border-border p-4">
             <p className="text-sm text-muted-foreground">
               Select your interests in Profile Settings to see personalized
@@ -94,7 +95,7 @@ export function ProfileNewsSidebar({ variant }: ProfileNewsSidebarProps) {
               Choose news interests
             </Link>
           </div>
-        ) : articles.length === 0 ? (
+        ) : state === "empty" ? (
           <p className="text-sm text-muted-foreground">
             No recent articles matched your interests. Check back soon.
           </p>
@@ -104,8 +105,7 @@ export function ProfileNewsSidebar({ variant }: ProfileNewsSidebarProps) {
               <a 
                 key={`${article.url}-${idx}`}
                 href={article.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
+                {...NEWS_ARTICLE_LINK_ATTRIBUTES}
                 className="group flex gap-3 p-3 -mx-3 rounded-xl hover:bg-muted/50 transition-all active:scale-[0.98]"
               >
                 {article.thumbnailUrl ? (

@@ -45,6 +45,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PostGallery } from "@/components/feed/post-gallery";
 import { ProfileHero } from "./components/profile-hero";
 import { ProfileNewsSidebar } from "./components/profile-news-sidebar";
+import { loadSavedNewsInterests } from "./components/profile-news-preferences";
 
 const newsInterestValues = [
   "business", "construction", "real_estate", "cooking", "entertainment",
@@ -275,7 +276,7 @@ export default function Profile() {
         profileWallpaperScale: memberData.member.profileWallpaperScale || 100,
         autoPostShares: memberData.member.autoPostShares,
         preferredPostPlatforms: memberData.member.preferredPostPlatforms,
-        newsInterests: memberData.member.newsInterests,
+        newsInterests: loadSavedNewsInterests(memberData.member),
       });
       // reset wallpaper tracking on load
       setWallpaperFile(null);

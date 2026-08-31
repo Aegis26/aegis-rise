@@ -11,7 +11,7 @@ const ARTICLES_PER_SIDEBAR = 6;
 const RESPONSE_ARTICLE_LIMIT = ARTICLES_PER_SIDEBAR * 2;
 const PROVIDER_PAGE_SIZE = 30;
 
-const interestQueries = {
+export const interestQueries = {
   business: "business",
   construction: "construction",
   real_estate: '"real estate"',
@@ -28,7 +28,7 @@ const interestQueries = {
   diy: "DIY",
 } as const;
 
-type NewsInterest = keyof typeof interestQueries;
+export type NewsInterest = keyof typeof interestQueries;
 
 type NewsApiArticle = {
   title?: unknown;
@@ -51,25 +51,26 @@ function isSafeHttpUrl(value: unknown): value is string {
   }
 }
 
-function normalizeArticles(value: unknown): Array<{
+export type NewsArticle = {
   title: string;
   source: string;
   publishedAt: string;
   url: string;
   thumbnailUrl: string | null;
-}> {
+};
+
+export type NewsCacheEntry = {
+  articles: NewsArticle[];
+  fetchedAt: Date;
+};
+
+export function normalizeArticles(value: unknown): NewsArticle[] {
   if (!Array.isArray(value)) {
     return [];
   }
 
   const seenUrls = new Set<string>();
-  const articles: Array<{
-    title: string;
-    source: string;
-    publishedAt: string;
-    url: string;
-    thumbnailUrl: string | null;
-  }> = [];
+  const articles: NewsArticle[] = [];
 
   for (const candidate of value as NewsApiArticle[]) {
     const title =
@@ -111,18 +112,12 @@ function normalizeArticles(value: unknown): Array<{
   return articles;
 }
 
-function getCacheKey(categories: NewsInterest[]): string {
+export function getCacheKey(categories: NewsInterest[]): string {
   return categories.join("|");
 }
 
-function toNewsResponse(
-  articles: Array<{
-    title: string;
-    source: string;
-    publishedAt: string;
-    url: string;
-    thumbnailUrl: string | null;
-  }>,
+export function toNewsResponse(
+  articles: NewsArticle[],
   categories: NewsInterest[],
   cacheStatus: "live" | "fresh_cache" | "stale_fallback",
   fetchedAt: Date | null,
@@ -143,13 +138,17 @@ function toNewsResponse(
   });
 }
 
+export function buildNewsQuery(categories: NewsInterest[]): string {
+  return categories
+    .map((category) => `(${interestQueries[category]})`)
+    .join(" OR ");
+}
+
 async function fetchNewsArticles(
   categories: NewsInterest[],
   apiKey: string,
-): Promise<ReturnType<typeof normalizeArticles>> {
-  const query = categories
-    .map((category) => `(${interestQueries[category]})`)
-    .join(" OR ");
+): Promise<NewsArticle[]> {
+  const query = buildNewsQuery(categories);
   const searchParams = new URLSearchParams({
     q: query,
     language: "en",
@@ -183,6 +182,64 @@ async function fetchNewsArticles(
   return normalizeArticles(payload.articles);
 }
 
+type NewsResolverDependencies = {
+  getCached: (cacheKey: string) => Promise<NewsCacheEntry | undefined>;
+  saveCached: (
+    cacheKey: string,
+    articles: NewsArticle[],
+    fetchedAt: Date,
+  ) => Promise<void>;
+  fetchArticles: (categories: NewsInterest[]) => Promise<NewsArticle[]>;
+  onProviderError?: (error: unknown) => void;
+  now?: () => Date;
+};
+
+export async function resolveNews(
+  categories: NewsInterest[],
+  dependencies: NewsResolverDependencies,
+) {
+  if (categories.length === 0) {
+    return toNewsResponse([], [], "live", null);
+  }
+
+  const cacheKey = getCacheKey(categories);
+  const cached = await dependencies.getCached(cacheKey);
+  const getCurrentTime = dependencies.now ?? (() => new Date());
+  const currentTime = getCurrentTime();
+
+  if (
+    cached &&
+    currentTime.getTime() - cached.fetchedAt.getTime() < CACHE_TTL_MS
+  ) {
+    return toNewsResponse(
+      cached.articles,
+      categories,
+      "fresh_cache",
+      cached.fetchedAt,
+    );
+  }
+
+  try {
+    const articles = await dependencies.fetchArticles(categories);
+    const fetchedAt = getCurrentTime();
+    await dependencies.saveCached(cacheKey, articles, fetchedAt);
+    return toNewsResponse(articles, categories, "live", fetchedAt);
+  } catch (error) {
+    dependencies.onProviderError?.(error);
+    if (cached) {
+      return toNewsResponse(
+        cached.articles,
+        categories,
+        "stale_fallback",
+        cached.fetchedAt,
+      );
+    }
+    throw error instanceof HttpError
+      ? error
+      : new HttpError(502, "News is temporarily unavailable.");
+  }
+}
+
 router.get("/news", requireAuth, async (request, response, next): Promise<void> => {
   try {
     const [member] = await db
@@ -202,91 +259,49 @@ router.get("/news", requireAuth, async (request, response, next): Promise<void> 
         ),
       ),
     );
-    if (categories.length === 0) {
-      response.json(toNewsResponse([], [], "live", null));
-      return;
-    }
-
-    const cacheKey = getCacheKey(categories);
-    const [cached] = await db
-      .select()
-      .from(newsArticleCacheTable)
-      .where(eq(newsArticleCacheTable.cacheKey, cacheKey))
-      .limit(1);
-    const now = Date.now();
-
-    if (cached && now - cached.fetchedAt.getTime() < CACHE_TTL_MS) {
-      response.json(
-        toNewsResponse(
-          cached.articles,
-          categories,
-          "fresh_cache",
-          cached.fetchedAt,
-        ),
-      );
-      return;
-    }
-
     const apiKey = process.env.NEWS_API_KEY?.trim();
-    if (!apiKey) {
-      if (cached) {
-        response.json(
-          toNewsResponse(
-            cached.articles,
-            categories,
-            "stale_fallback",
-            cached.fetchedAt,
-          ),
-        );
-        return;
-      }
-      throw new HttpError(502, "News is temporarily unavailable.");
-    }
-
-    try {
-      const articles = await fetchNewsArticles(categories, apiKey);
-      const fetchedAt = new Date();
-
-      await db
-        .insert(newsArticleCacheTable)
-        .values({
-          cacheKey,
-          articles,
-          fetchedAt,
-          updatedAt: fetchedAt,
-        })
-        .onConflictDoUpdate({
-          target: newsArticleCacheTable.cacheKey,
-          set: {
+    const responseData = await resolveNews(categories, {
+      getCached: async (cacheKey) => {
+        const [cached] = await db
+          .select()
+          .from(newsArticleCacheTable)
+          .where(eq(newsArticleCacheTable.cacheKey, cacheKey))
+          .limit(1);
+        return cached;
+      },
+      saveCached: async (cacheKey, articles, fetchedAt) => {
+        await db
+          .insert(newsArticleCacheTable)
+          .values({
+            cacheKey,
             articles,
             fetchedAt,
             updatedAt: fetchedAt,
-          },
-        });
-
-      response.json(
-        toNewsResponse(articles, categories, "live", fetchedAt),
-      );
-    } catch (error) {
-      request.log.warn(
-        { err: error, categoryCount: categories.length },
-        "News provider unavailable; using cached articles when available",
-      );
-
-      if (cached) {
-        response.json(
-          toNewsResponse(
-            cached.articles,
-            categories,
-            "stale_fallback",
-            cached.fetchedAt,
-          ),
+          })
+          .onConflictDoUpdate({
+            target: newsArticleCacheTable.cacheKey,
+            set: {
+              articles,
+              fetchedAt,
+              updatedAt: fetchedAt,
+            },
+          });
+      },
+      fetchArticles: async (requestedCategories) => {
+        if (!apiKey) {
+          throw new HttpError(502, "News is temporarily unavailable.");
+        }
+        return fetchNewsArticles(requestedCategories, apiKey);
+      },
+      onProviderError: (error) => {
+        request.log.warn(
+          { err: error, categoryCount: categories.length },
+          "News provider unavailable; using cached articles when available",
         );
-        return;
-      }
+      },
+    });
 
-      throw new HttpError(502, "News is temporarily unavailable.");
-    }
+    response.json(responseData);
   } catch (error) {
     next(error);
   }

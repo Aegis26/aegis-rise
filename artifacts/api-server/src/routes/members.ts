@@ -26,7 +26,7 @@ const newsInterestSchema = z.enum([
   "diy",
 ]);
 
-const updateProfileSchema = z
+export const updateProfileSchema = z
   .object({
     name: z.string().trim().min(1).max(120).optional(),
     title: z.string().trim().min(1).max(160).optional(),
