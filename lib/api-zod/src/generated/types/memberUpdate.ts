@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MemberUpdateThemePreference } from './memberUpdateThemePreference';
+import type { NewsInterest } from './newsInterest';
 import type { SocialPlatform } from './socialPlatform';
 
 export interface MemberUpdate {
@@ -33,4 +34,6 @@ export interface MemberUpdate {
   autoPostShares?: boolean;
   /** @maxItems 3 */
   preferredPostPlatforms?: SocialPlatform[];
+  /** @maxItems 14 */
+  newsInterests?: NewsInterest[];
 }

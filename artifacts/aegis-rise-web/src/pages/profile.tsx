@@ -18,9 +18,10 @@ import {
   getGetCurrentMemberQueryKey,
   getListSocialAccountsQueryKey,
   getListMembersQueryKey,
+  getGetNewsQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug, Settings, Users, ChevronDown, ShieldCheck } from "lucide-react";
+import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug, Settings, Users, ChevronDown, ShieldCheck, Newspaper } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PostGallery } from "@/components/feed/post-gallery";
 import { ProfileHero } from "./components/profile-hero";
+import { ProfileNewsSidebar } from "./components/profile-news-sidebar";
+
+const newsInterestValues = [
+  "business", "construction", "real_estate", "cooking", "entertainment",
+  "politics", "world_news", "health_wellness", "cybersecurity_it", "general_contractor",
+  "travel", "stock_market", "financial", "diy"
+] as const;
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -56,6 +64,7 @@ const profileSchema = z.object({
   profileWallpaperScale: z.number().int().min(50).max(200).default(100),
   autoPostShares: z.boolean(),
   preferredPostPlatforms: z.array(z.enum(["facebook", "linkedin", "instagram"])),
+  newsInterests: z.array(z.enum(newsInterestValues)).max(14).optional().default([]),
 });
 
 type ProfileFormValues = z.infer<typeof profileSchema>;
@@ -217,6 +226,7 @@ export default function Profile() {
       profileWallpaperScale: 100,
       autoPostShares: false,
       preferredPostPlatforms: [],
+      newsInterests: [],
     },
   });
   const passwordChangeForm = useForm<PasswordChangeFormValues>({
@@ -265,6 +275,7 @@ export default function Profile() {
         profileWallpaperScale: memberData.member.profileWallpaperScale || 100,
         autoPostShares: memberData.member.autoPostShares,
         preferredPostPlatforms: memberData.member.preferredPostPlatforms,
+        newsInterests: memberData.member.newsInterests,
       });
       // reset wallpaper tracking on load
       setWallpaperFile(null);
@@ -294,6 +305,7 @@ export default function Profile() {
         setIsSaved(true);
         setTimeout(() => setIsSaved(false), 3000);
         queryClient.setQueryData(getGetCurrentMemberQueryKey(), data);
+        queryClient.invalidateQueries({ queryKey: getGetNewsQueryKey() });
         toast({ title: "Profile updated successfully" });
         
         // Re-apply theme if they changed it
@@ -502,7 +514,9 @@ export default function Profile() {
       : member?.profileWallpaperUrl;
 
   return (
-    <div className="max-w-4xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-8">
+    <div
+      className={`${isProfileSettings ? "max-w-4xl" : "max-w-[90rem]"} mx-auto w-full p-4 md:p-6 lg:p-8 space-y-8`}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-3xl font-display font-bold">
@@ -658,8 +672,13 @@ export default function Profile() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div className="md:col-span-1 space-y-6">
+      <div
+        className={`grid grid-cols-1 gap-8 ${isProfileSettings ? "md:grid-cols-3" : "xl:grid-cols-4"}`}
+      >
+        <aside
+          className={`${isProfileSettings ? "md:col-span-1" : "xl:col-span-1"} space-y-6`}
+          aria-label={isProfileSettings ? "Profile details" : "Profile details and top news"}
+        >
           <Card>
             <CardContent className="p-6 flex flex-col items-center text-center">
               <div className="w-full pt-2 flex flex-col gap-2 text-sm text-left">
@@ -682,6 +701,10 @@ export default function Profile() {
               </div>
             </CardContent>
           </Card>
+
+          {!isProfileSettings && (
+            <ProfileNewsSidebar variant="primary" />
+          )}
 
           {isProfileSettings && (
             <Card data-testid="security-section">
@@ -974,9 +997,11 @@ export default function Profile() {
               </CardContent>
             </Card>
           )}
-        </div>
+        </aside>
 
-        <div className="md:col-span-2 space-y-6">
+        <div
+          className={`${isProfileSettings ? "md:col-span-2" : "xl:col-span-2"} space-y-6`}
+        >
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               
@@ -1413,6 +1438,67 @@ export default function Profile() {
               </Card>
               )}
 
+              {isProfileSettings && (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Newspaper className="h-5 w-5 text-primary" />
+                    News Preferences
+                  </CardTitle>
+                  <CardDescription>
+                    Select up to 14 topics to personalize your news feed on your profile.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <FormField
+                    control={form.control}
+                    name="newsInterests"
+                    render={() => (
+                      <FormItem>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                          {newsInterestValues.map((interest) => (
+                            <FormField
+                              key={interest}
+                              control={form.control}
+                              name="newsInterests"
+                              render={({ field }) => {
+                                return (
+                                  <FormItem
+                                    key={interest}
+                                    className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3 shadow-sm bg-card hover:bg-muted/50 transition-colors"
+                                  >
+                                    <FormControl>
+                                      <Checkbox
+                                        checked={field.value?.includes(interest)}
+                                        onCheckedChange={(checked) => {
+                                          return checked
+                                            ? field.onChange([...(field.value || []), interest])
+                                            : field.onChange(
+                                                field.value?.filter(
+                                                  (value) => value !== interest
+                                                )
+                                              )
+                                        }}
+                                        data-testid={`checkbox-news-interest-${interest}`}
+                                      />
+                                    </FormControl>
+                                    <FormLabel className="font-normal cursor-pointer w-full text-sm leading-snug">
+                                      {interest.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
+                                    </FormLabel>
+                                  </FormItem>
+                                )
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+              )}
+
               <div className="flex justify-end pt-4">
                 <Button 
                   type="submit" 
@@ -1434,6 +1520,14 @@ export default function Profile() {
             </form>
           </Form>
         </div>
+        {!isProfileSettings && (
+          <aside
+            className="space-y-6 xl:col-span-1"
+            aria-label="Alternative personalized news"
+          >
+            <ProfileNewsSidebar variant="alternative" />
+          </aside>
+        )}
       </div>
       {!isProfileSettings && (
         <Card>

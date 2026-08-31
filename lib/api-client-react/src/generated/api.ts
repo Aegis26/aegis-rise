@@ -69,6 +69,7 @@ import type {
   Message,
   ModerationLogList,
   ModerationReason,
+  NewsResponse,
   PendingMemberList,
   PlatformAnalytics,
   PostAnalyticsResult,
@@ -1237,6 +1238,77 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
       > => {
       return useMutation(getUpdateCurrentMemberMutationOptions(options));
     }
+
+export const getGetNewsUrl = () => {
+
+
+
+
+  return `/api/news`
+}
+
+export const getNews = async ( options?: Parameters<typeof customFetch>[1]): Promise<NewsResponse> => {
+
+  return customFetch<NewsResponse>(getGetNewsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetNewsQueryKey = () => {
+    return [
+    `/api/news`
+    ] as const;
+    }
+
+
+export const getGetNewsQueryOptions = <TData = Awaited<ReturnType<typeof getNews>>, TError = ErrorType<ErrorResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetNewsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getNews>>> = ({ signal }) => getNews({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getNews>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetNewsQueryResult = NonNullable<Awaited<ReturnType<typeof getNews>>>
+export type GetNewsQueryError = ErrorType<ErrorResponse>
+
+
+
+export function useGetNews<TData = Awaited<ReturnType<typeof getNews>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getNews>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetNewsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getListMembersUrl = () => {
 

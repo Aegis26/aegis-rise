@@ -9,6 +9,22 @@ import { HttpError } from "../utils/errors";
 const router: IRouter = Router();
 const memberIdSchema = z.string().uuid();
 const socialPlatformSchema = z.enum(["facebook", "linkedin", "instagram"]);
+const newsInterestSchema = z.enum([
+  "business",
+  "construction",
+  "real_estate",
+  "cooking",
+  "entertainment",
+  "politics",
+  "world_news",
+  "health_wellness",
+  "cybersecurity_it",
+  "general_contractor",
+  "travel",
+  "stock_market",
+  "financial",
+  "diy",
+]);
 
 const updateProfileSchema = z
   .object({
@@ -28,6 +44,13 @@ const updateProfileSchema = z
     profileWallpaperScale: z.number().int().min(50).max(200).optional(),
     autoPostShares: z.boolean().optional(),
     preferredPostPlatforms: z.array(socialPlatformSchema).max(3).optional(),
+    newsInterests: z
+      .array(newsInterestSchema)
+      .max(14)
+      .refine((values) => new Set(values).size === values.length, {
+        message: "News interests must be unique.",
+      })
+      .optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: "Provide at least one profile field to update.",
@@ -79,6 +102,7 @@ router.get("/members/me", requireAuth, async (request, response, next) => {
         profileWallpaperScale: membersTable.profileWallpaperScale,
         autoPostShares: membersTable.autoPostShares,
         preferredPostPlatforms: membersTable.preferredPostPlatforms,
+        newsInterests: membersTable.newsInterests,
         role: membersTable.role,
         status: membersTable.status,
         createdAt: membersTable.createdAt,
@@ -138,6 +162,7 @@ router.patch("/members/me", requireAuth, async (request, response, next) => {
         profileWallpaperScale: membersTable.profileWallpaperScale,
         autoPostShares: membersTable.autoPostShares,
         preferredPostPlatforms: membersTable.preferredPostPlatforms,
+        newsInterests: membersTable.newsInterests,
         role: membersTable.role,
         status: membersTable.status,
         createdAt: membersTable.createdAt,

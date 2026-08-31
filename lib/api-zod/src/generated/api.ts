@@ -166,6 +166,8 @@ export const getCurrentMemberResponseMemberProfileWallpaperScaleDefault = 100;
 export const getCurrentMemberResponseMemberProfileWallpaperScaleMin = 50;
 export const getCurrentMemberResponseMemberProfileWallpaperScaleMax = 200;
 
+export const getCurrentMemberResponseMemberNewsInterestsMax = 14;
+
 
 
 export const GetCurrentMemberResponse = zod.object({
@@ -186,6 +188,7 @@ export const GetCurrentMemberResponse = zod.object({
   "profileWallpaperScale": zod.number().int().min(getCurrentMemberResponseMemberProfileWallpaperScaleMin).max(getCurrentMemberResponseMemberProfileWallpaperScaleMax).default(getCurrentMemberResponseMemberProfileWallpaperScaleDefault),
   "autoPostShares": zod.boolean(),
   "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])),
+  "newsInterests": zod.array(zod.enum(['business', 'construction', 'real_estate', 'cooking', 'entertainment', 'politics', 'world_news', 'health_wellness', 'cybersecurity_it', 'general_contractor', 'travel', 'stock_market', 'financial', 'diy'])).max(getCurrentMemberResponseMemberNewsInterestsMax),
   "role": zod.enum(['member', 'admin', 'super_admin']),
   "status": zod.enum(['pending', 'active', 'banned']),
   "createdAt": zod.coerce.date(),
@@ -202,6 +205,8 @@ export const updateCurrentMemberBodyProfileWallpaperScaleMax = 200;
 
 export const updateCurrentMemberBodyPreferredPostPlatformsMax = 3;
 
+export const updateCurrentMemberBodyNewsInterestsMax = 14;
+
 
 
 export const UpdateCurrentMemberBody = zod.object({
@@ -217,12 +222,15 @@ export const UpdateCurrentMemberBody = zod.object({
   "profileWallpaperUrl": zod.string().url().nullish(),
   "profileWallpaperScale": zod.number().int().min(updateCurrentMemberBodyProfileWallpaperScaleMin).max(updateCurrentMemberBodyProfileWallpaperScaleMax).optional(),
   "autoPostShares": zod.boolean().optional(),
-  "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])).max(updateCurrentMemberBodyPreferredPostPlatformsMax).optional()
+  "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])).max(updateCurrentMemberBodyPreferredPostPlatformsMax).optional(),
+  "newsInterests": zod.array(zod.enum(['business', 'construction', 'real_estate', 'cooking', 'entertainment', 'politics', 'world_news', 'health_wellness', 'cybersecurity_it', 'general_contractor', 'travel', 'stock_market', 'financial', 'diy'])).max(updateCurrentMemberBodyNewsInterestsMax).optional()
 })
 
 export const updateCurrentMemberResponseMemberProfileWallpaperScaleDefault = 100;
 export const updateCurrentMemberResponseMemberProfileWallpaperScaleMin = 50;
 export const updateCurrentMemberResponseMemberProfileWallpaperScaleMax = 200;
+
+export const updateCurrentMemberResponseMemberNewsInterestsMax = 14;
 
 
 
@@ -244,11 +252,34 @@ export const UpdateCurrentMemberResponse = zod.object({
   "profileWallpaperScale": zod.number().int().min(updateCurrentMemberResponseMemberProfileWallpaperScaleMin).max(updateCurrentMemberResponseMemberProfileWallpaperScaleMax).default(updateCurrentMemberResponseMemberProfileWallpaperScaleDefault),
   "autoPostShares": zod.boolean(),
   "preferredPostPlatforms": zod.array(zod.enum(['facebook', 'linkedin', 'instagram'])),
+  "newsInterests": zod.array(zod.enum(['business', 'construction', 'real_estate', 'cooking', 'entertainment', 'politics', 'world_news', 'health_wellness', 'cybersecurity_it', 'general_contractor', 'travel', 'stock_market', 'financial', 'diy'])).max(updateCurrentMemberResponseMemberNewsInterestsMax),
   "role": zod.enum(['member', 'admin', 'super_admin']),
   "status": zod.enum(['pending', 'active', 'banned']),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date()
 })
+})
+
+
+export const GetNewsResponse = zod.object({
+  "articles": zod.array(zod.object({
+  "title": zod.string(),
+  "source": zod.string(),
+  "publishedAt": zod.coerce.date(),
+  "url": zod.string().url(),
+  "thumbnailUrl": zod.string().url().nullable()
+})),
+  "alternativeArticles": zod.array(zod.object({
+  "title": zod.string(),
+  "source": zod.string(),
+  "publishedAt": zod.coerce.date(),
+  "url": zod.string().url(),
+  "thumbnailUrl": zod.string().url().nullable()
+})),
+  "categories": zod.array(zod.enum(['business', 'construction', 'real_estate', 'cooking', 'entertainment', 'politics', 'world_news', 'health_wellness', 'cybersecurity_it', 'general_contractor', 'travel', 'stock_market', 'financial', 'diy'])),
+  "servedFromCache": zod.boolean(),
+  "cacheStatus": zod.enum(['live', 'fresh_cache', 'stale_fallback']),
+  "fetchedAt": zod.coerce.date().nullable()
 })
 
 

@@ -4,6 +4,7 @@ import {
   integer,
   pgEnum,
   index,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -106,6 +107,10 @@ export const membersTable = pgTable(
       .array()
       .default(sql`ARRAY[]::social_platform[]`)
       .notNull(),
+    newsInterests: text("news_interests")
+      .array()
+      .default(sql`ARRAY[]::text[]`)
+      .notNull(),
     role: memberRoleEnum("role").default("member").notNull(),
     status: memberStatusEnum("status").default("pending").notNull(),
     ...timestamps,
@@ -114,6 +119,29 @@ export const membersTable = pgTable(
     index("members_chapter_status_idx").on(table.chapter, table.status),
     index("members_created_at_idx").on(table.createdAt),
   ],
+);
+
+export type CachedNewsArticle = {
+  title: string;
+  source: string;
+  publishedAt: string;
+  url: string;
+  thumbnailUrl: string | null;
+};
+
+export const newsArticleCacheTable = pgTable(
+  "news_article_cache",
+  {
+    cacheKey: text("cache_key").primaryKey(),
+    articles: jsonb("articles").$type<CachedNewsArticle[]>().notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [index("news_article_cache_fetched_at_idx").on(table.fetchedAt)],
 );
 
 export const passwordChangeAttemptsTable = pgTable(

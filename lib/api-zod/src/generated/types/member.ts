@@ -8,6 +8,7 @@
 import type { MemberRole } from './memberRole';
 import type { MemberStatus } from './memberStatus';
 import type { MemberThemePreference } from './memberThemePreference';
+import type { NewsInterest } from './newsInterest';
 import type { SocialPlatform } from './socialPlatform';
 
 export interface Member {
@@ -34,6 +35,8 @@ export interface Member {
   profileWallpaperScale: number;
   autoPostShares: boolean;
   preferredPostPlatforms: SocialPlatform[];
+  /** @maxItems 14 */
+  newsInterests: NewsInterest[];
   role: MemberRole;
   status: MemberStatus;
   createdAt: Date;

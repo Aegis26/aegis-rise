@@ -22,6 +22,7 @@ The API listens on `PORT` (the workspace workflow supplies this automatically). 
 - `R2_BUCKET_NAME` — R2 bucket used for image storage.
 - `R2_PUBLIC_URL` — public R2 development URL or custom-domain base URL.
 - `APP_BASE_URL` — public web-app base URL used in share previews. It is required in production; development falls back to an approved local or Replit development host.
+- `NEWS_API_KEY` — server-side NewsAPI.org key used for personalized Profile news feeds.
 - `NODE_ENV` — `development` or `production`.
 - `PORT` — server port; defaults are supplied by the workspace workflow.
 

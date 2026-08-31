@@ -47,6 +47,7 @@ the repository.
 | `INSTAGRAM_CLIENT_ID` | Instagram/Meta application client ID |
 | `INSTAGRAM_CLIENT_SECRET` | Instagram/Meta application secret |
 | `APP_BASE_URL` | The generated Railway application URL, including `https://` and no trailing slash |
+| `NEWS_API_KEY` | NewsAPI.org key for personalized Profile news feeds |
 
 ### Required R2 configuration
 

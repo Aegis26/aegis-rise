@@ -17,6 +17,7 @@ function validateProductionConfiguration(): void {
     "JWT_SECRET",
     "LINKEDIN_CLIENT_ID",
     "LINKEDIN_CLIENT_SECRET",
+    "NEWS_API_KEY",
     "RESEND_API_KEY",
     "RESEND_FROM_EMAIL",
     "R2_ACCESS_KEY_ID",

@@ -161,6 +161,26 @@ export const SocialPlatform = {
   instagram: 'instagram',
 } as const;
 
+export type NewsInterest = typeof NewsInterest[keyof typeof NewsInterest];
+
+
+export const NewsInterest = {
+  business: 'business',
+  construction: 'construction',
+  real_estate: 'real_estate',
+  cooking: 'cooking',
+  entertainment: 'entertainment',
+  politics: 'politics',
+  world_news: 'world_news',
+  health_wellness: 'health_wellness',
+  cybersecurity_it: 'cybersecurity_it',
+  general_contractor: 'general_contractor',
+  travel: 'travel',
+  stock_market: 'stock_market',
+  financial: 'financial',
+  diy: 'diy',
+} as const;
+
 export interface Member {
   id: string;
   email: string;
@@ -185,6 +205,8 @@ export interface Member {
   profileWallpaperScale: number;
   autoPostShares: boolean;
   preferredPostPlatforms: SocialPlatform[];
+  /** @maxItems 14 */
+  newsInterests: NewsInterest[];
   role: MemberRole;
   status: MemberStatus;
   createdAt: string;
@@ -224,10 +246,40 @@ export interface MemberUpdate {
   autoPostShares?: boolean;
   /** @maxItems 3 */
   preferredPostPlatforms?: SocialPlatform[];
+  /** @maxItems 14 */
+  newsInterests?: NewsInterest[];
 }
 
 export interface MemberResponse {
   member: Member;
+}
+
+export interface NewsArticle {
+  title: string;
+  source: string;
+  publishedAt: string;
+  url: string;
+  /** @nullable */
+  thumbnailUrl: string | null;
+}
+
+export type NewsResponseCacheStatus = typeof NewsResponseCacheStatus[keyof typeof NewsResponseCacheStatus];
+
+
+export const NewsResponseCacheStatus = {
+  live: 'live',
+  fresh_cache: 'fresh_cache',
+  stale_fallback: 'stale_fallback',
+} as const;
+
+export interface NewsResponse {
+  articles: NewsArticle[];
+  alternativeArticles: NewsArticle[];
+  categories: NewsInterest[];
+  servedFromCache: boolean;
+  cacheStatus: NewsResponseCacheStatus;
+  /** @nullable */
+  fetchedAt: string | null;
 }
 
 export interface MemberSummary {

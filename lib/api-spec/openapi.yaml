@@ -12,6 +12,7 @@ tags:
   - name: auth
   - name: social
   - name: members
+  - name: news
   - name: posts
   - name: shares
   - name: uploads
@@ -287,6 +288,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MemberResponse"
+  /news:
+    get:
+      operationId: getNews
+      tags: [news]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Personalized news feed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsResponse"
+        "502":
+          description: News provider unavailable and no cached articles exist
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /members:
     get:
       operationId: listMembers
@@ -1080,7 +1099,7 @@ components:
         status: { type: string, enum: [pending, active, banned] }
     Member:
       type: object
-      required: [id, email, name, title, company, chapter, themePreference, primaryColor, accentColor, profileBackgroundColor, profileWallpaperScale, autoPostShares, preferredPostPlatforms, role, status, createdAt, updatedAt]
+      required: [id, email, name, title, company, chapter, themePreference, primaryColor, accentColor, profileBackgroundColor, profileWallpaperScale, autoPostShares, preferredPostPlatforms, newsInterests, role, status, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         email: { type: string }
@@ -1100,6 +1119,11 @@ components:
         preferredPostPlatforms:
           type: array
           items: { $ref: "#/components/schemas/SocialPlatform" }
+        newsInterests:
+          type: array
+          maxItems: 14
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/NewsInterest" }
         role: { type: string, enum: [member, admin, super_admin] }
         status: { type: string, enum: [pending, active, banned] }
         createdAt: { type: string, format: date-time }
@@ -1123,10 +1147,59 @@ components:
           type: array
           maxItems: 3
           items: { $ref: "#/components/schemas/SocialPlatform" }
+        newsInterests:
+          type: array
+          maxItems: 14
+          uniqueItems: true
+          items: { $ref: "#/components/schemas/NewsInterest" }
     MemberResponse:
       type: object
       required: [member]
       properties: { member: { $ref: "#/components/schemas/Member" } }
+    NewsInterest:
+      type: string
+      enum:
+        - business
+        - construction
+        - real_estate
+        - cooking
+        - entertainment
+        - politics
+        - world_news
+        - health_wellness
+        - cybersecurity_it
+        - general_contractor
+        - travel
+        - stock_market
+        - financial
+        - diy
+    NewsArticle:
+      type: object
+      required: [title, source, publishedAt, url, thumbnailUrl]
+      properties:
+        title: { type: string }
+        source: { type: string }
+        publishedAt: { type: string, format: date-time }
+        url: { type: string, format: uri }
+        thumbnailUrl: { type: [string, "null"], format: uri }
+    NewsResponse:
+      type: object
+      required: [articles, alternativeArticles, categories, servedFromCache, cacheStatus, fetchedAt]
+      properties:
+        articles:
+          type: array
+          items: { $ref: "#/components/schemas/NewsArticle" }
+        alternativeArticles:
+          type: array
+          items: { $ref: "#/components/schemas/NewsArticle" }
+        categories:
+          type: array
+          items: { $ref: "#/components/schemas/NewsInterest" }
+        servedFromCache: { type: boolean }
+        cacheStatus:
+          type: string
+          enum: [live, fresh_cache, stale_fallback]
+        fetchedAt: { type: ["string", "null"], format: date-time }
     MemberSummary:
       type: object
       required: [id, name, title, company]
