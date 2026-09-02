@@ -24,7 +24,9 @@ test("direct-message encryption rejects tampering", () => {
   process.env.SOCIAL_TOKEN_ENCRYPTION_KEY = key;
   const encrypted = encryptMessage("private message", associatedData);
   const parts = encrypted.split(".");
-  parts[2] = `${parts[2]!.slice(0, -1)}${parts[2]!.endsWith("A") ? "B" : "A"}`;
+  const tag = Buffer.from(parts[2]!, "base64url");
+  tag[0] = tag[0]! ^ 1;
+  parts[2] = tag.toString("base64url");
   assert.throws(
     () => decryptMessage(parts.join("."), associatedData),
     /could not be read securely/,
