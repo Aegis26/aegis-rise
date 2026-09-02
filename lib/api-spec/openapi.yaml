@@ -1,4 +1,51 @@
-       content:
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: Aegis Rise member, social feed, and chapter administration API.
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+  - name: auth
+  - name: social
+  - name: members
+  - name: news
+  - name: posts
+  - name: shares
+  - name: uploads
+  - name: admin
+  - name: messages
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /readyz:
+    get:
+      operationId: readinessCheck
+      tags: [health]
+      summary: Database readiness check
+      responses:
+        "200":
+          description: Application and database are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+        "503":
+          description: Database is unavailable
+          content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
