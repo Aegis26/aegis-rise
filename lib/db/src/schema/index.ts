@@ -343,6 +343,119 @@ export const sharesTable = pgTable(
   ],
 );
 
+export const directConversationsTable = pgTable(
+  "direct_conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    chapter: text("chapter").notNull(),
+    participantOneId: uuid("participant_one_id").references(
+      () => membersTable.id,
+      { onDelete: "set null" },
+    ),
+    participantTwoId: uuid("participant_two_id").references(
+      () => membersTable.id,
+      { onDelete: "set null" },
+    ),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex("direct_conversations_participants_idx").on(
+      table.participantOneId,
+      table.participantTwoId,
+    ),
+    index("direct_conversations_participant_one_idx").on(
+      table.participantOneId,
+      table.lastMessageAt,
+    ),
+    index("direct_conversations_participant_two_idx").on(
+      table.participantTwoId,
+      table.lastMessageAt,
+    ),
+  ],
+);
+
+export const directMessagesTable = pgTable(
+  "direct_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => directConversationsTable.id, { onDelete: "restrict" }),
+    senderId: uuid("sender_id").references(() => membersTable.id, {
+      onDelete: "set null",
+    }),
+    recipientId: uuid("recipient_id").references(() => membersTable.id, {
+      onDelete: "set null",
+    }),
+    chapter: text("chapter").notNull(),
+    clientMessageId: uuid("client_message_id").notNull(),
+    encryptedBody: text("encrypted_body").notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("direct_messages_sender_client_idx").on(
+      table.senderId,
+      table.clientMessageId,
+    ),
+    index("direct_messages_conversation_time_idx").on(
+      table.conversationId,
+      table.createdAt,
+    ),
+    index("direct_messages_recipient_read_idx").on(
+      table.recipientId,
+      table.readAt,
+    ),
+  ],
+);
+
+export const directMessageBlocksTable = pgTable(
+  "direct_message_blocks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    blockerId: uuid("blocker_id")
+      .notNull()
+      .references(() => membersTable.id, { onDelete: "cascade" }),
+    blockedId: uuid("blocked_id")
+      .notNull()
+      .references(() => membersTable.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    uniqueIndex("direct_message_blocks_pair_idx").on(
+      table.blockerId,
+      table.blockedId,
+    ),
+    index("direct_message_blocks_blocked_idx").on(table.blockedId),
+  ],
+);
+
+export const directMessagePresenceTable = pgTable(
+  "direct_message_presence",
+  {
+    memberId: uuid("member_id")
+      .primaryKey()
+      .references(() => membersTable.id, { onDelete: "cascade" }),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    typingToMemberId: uuid("typing_to_member_id").references(
+      () => membersTable.id,
+      { onDelete: "set null" },
+    ),
+    typingUpdatedAt: timestamp("typing_updated_at", { withTimezone: true }),
+  },
+  (table) => [index("direct_message_presence_seen_idx").on(table.lastSeenAt)],
+);
+
 export const chapterConfigsTable = pgTable("chapter_configs", {
   id: uuid("id").defaultRandom().primaryKey(),
   chapterName: text("chapter_name").notNull().unique(),
@@ -416,6 +529,9 @@ export const insertModActionSchema = createInsertSchema(modActionsTable).omit({
   id: true,
   createdAt: true,
 });
+export const insertDirectMessageSchema = createInsertSchema(
+  directMessagesTable,
+).omit({ id: true, createdAt: true });
 
 export type Member = typeof membersTable.$inferSelect;
 export type NewMember = z.infer<typeof insertMemberSchema>;
@@ -432,6 +548,9 @@ export type ChapterConfig = typeof chapterConfigsTable.$inferSelect;
 export type NewChapterConfig = z.infer<typeof insertChapterConfigSchema>;
 export type ModAction = typeof modActionsTable.$inferSelect;
 export type NewModAction = z.infer<typeof insertModActionSchema>;
+export type DirectConversation = typeof directConversationsTable.$inferSelect;
+export type DirectMessage = typeof directMessagesTable.$inferSelect;
+export type NewDirectMessage = z.infer<typeof insertDirectMessageSchema>;
 
 export type MemberRole = Member["role"];
 export type MemberStatus = Member["status"];

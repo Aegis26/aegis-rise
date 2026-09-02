@@ -1,167 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import { Controller, useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { Link, useLocation } from "wouter";
-import { 
-  useGetCurrentMember, 
-  useUpdateCurrentMember,
-  useUploadImage,
-  useUploadProfileWallpaper,
-  useListMemberPosts,
-  useListSocialAccounts,
-  useCreateSocialConnection,
-  useDisconnectSocialAccount,
-   useChangePassword,
-  useListMembers,
-  getListMemberPostsQueryKey,
-  getGetCurrentMemberQueryKey,
-  getListSocialAccountsQueryKey,
-  getListMembersQueryKey,
-  getGetNewsQueryKey,
-} from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Save, User, Palette, CheckCircle2, ImagePlus, FileText, Share2, Link2, Unplug, Settings, Users, ChevronDown, ShieldCheck, Newspaper } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { PostGallery } from "@/components/feed/post-gallery";
-import { ProfileHero } from "./components/profile-hero";
-import { ProfileNewsSidebar } from "./components/profile-news-sidebar";
-import { loadSavedNewsInterests } from "./components/profile-news-preferences";
-
-const newsInterestValues = [
-  "business", "construction", "real_estate", "cooking", "entertainment",
-  "politics", "world_news", "health_wellness", "cybersecurity_it", "general_contractor",
-  "travel", "stock_market", "financial", "diy"
-] as const;
-
-const profileSchema = z.object({
-  name: z.string().min(2, "Name is required"),
-  title: z.string().min(2, "Title is required"),
-  company: z.string().min(2, "Company is required"),
-  bio: z.string().optional().nullable(),
-  themePreference: z.enum(["light", "dark"]),
-  primaryColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code"),
-  accentColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code").optional().default("#00aaff"),
-  profileBackgroundColor: z.string().regex(/^#[0-9A-Fa-f]{6}$/, "Must be a valid hex color code").optional().default("#0a0a0a"),
-  profileWallpaperScale: z.number().int().min(50).max(200).default(100),
-  autoPostShares: z.boolean(),
-  preferredPostPlatforms: z.array(z.enum(["facebook", "linkedin", "instagram"])),
-  newsInterests: z.array(z.enum(newsInterestValues)).max(14).optional().default([]),
-});
-
-type ProfileFormValues = z.infer<typeof profileSchema>;
-type SocialPlatform = ProfileFormValues["preferredPostPlatforms"][number];
-
-const passwordChangeSchema = z
-  .object({
-    currentPassword: z.string().min(1, "Current password is required."),
-    newPassword: z
-      .string()
-      .min(8, "New password must be at least 8 characters.")
-      .max(72, "New password must be 72 characters or fewer.")
-      .refine(
-        (value) => new TextEncoder().encode(value).length <= 72,
-        "New password must be at most 72 bytes when UTF-8 encoded.",
-      )
-      .refine((value) => /[A-Z]/.test(value), "Add an uppercase letter.")
-      .refine((value) => /[a-z]/.test(value), "Add a lowercase letter.")
-      .refine((value) => /[0-9]/.test(value), "Add a number.")
-      .refine((value) => /[^A-Za-z0-9]/.test(value), "Add a special character."),
-    confirmNewPassword: z
-      .string()
-      .min(1, "Please confirm your new password."),
-  })
-  .superRefine((values, context) => {
-    if (
-      values.currentPassword &&
-      values.newPassword &&
-      values.currentPassword === values.newPassword
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["newPassword"],
-        message: "New password must be different from your current password.",
-      });
-    }
-    if (
-      values.confirmNewPassword &&
-      values.newPassword !== values.confirmNewPassword
-    ) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["confirmNewPassword"],
-        message: "New passwords do not match.",
-      });
-    }
-  });
-
-type PasswordChangeFormValues = z.infer<typeof passwordChangeSchema>;
-
-const passwordRequirements = [
-  { label: "At least 8 characters", test: (value: string) => value.length >= 8 },
-  { label: "One uppercase letter", test: (value: string) => /[A-Z]/.test(value) },
-  { label: "One lowercase letter", test: (value: string) => /[a-z]/.test(value) },
-  { label: "One number", test: (value: string) => /[0-9]/.test(value) },
-  {
-    label: "One special character",
-    test: (value: string) => /[^A-Za-z0-9]/.test(value),
-  },
-  {
-    label: "At most 72 UTF-8 bytes",
-    test: (value: string) =>
-      value.length > 0 && new TextEncoder().encode(value).length <= 72,
-  },
-] as const;
-
-const SOCIAL_PLATFORMS: Array<{
-  value: SocialPlatform;
-  label: string;
-  canAutoPost: boolean;
-}> = [
-  { value: "linkedin", label: "LinkedIn", canAutoPost: true },
-  { value: "facebook", label: "Facebook", canAutoPost: true },
-  { value: "instagram", label: "Instagram", canAutoPost: true },
-];
-
-function getAuthorizationUrl(result: unknown): string | undefined {
-  if (!result || typeof result !== "object") {
-    return undefined;
-  }
-
-  const response = result as {
-    authorizationUrl?: unknown;
-    data?: { authorizationUrl?: unknown };
-  };
-  const authorizationUrl =
-    response.authorizationUrl ?? response.data?.authorizationUrl;
-
-  return typeof authorizationUrl === "string" && authorizationUrl.length > 0
-    ? authorizationUrl
-    : undefined;
-}
-
-const COLOR_PRESETS = [
-  { name: "Electric Blue", value: "#00aaff" },
-  { name: "Neon Purple", value: "#b026ff" },
+", value: "#b026ff" },
   { name: "Cyber Green", value: "#00ff66" },
   { name: "Sunset Orange", value: "#ff5e00" },
   { name: "Crimson Red", value: "#ff003c" },
@@ -943,16 +780,16 @@ export default function Profile() {
                       data-testid="chapter-members-grid"
                     >
                       {visibleChapterMembers.map((chapterMember) => (
-                        <Link
+                        <div
                           key={chapterMember.id}
-                          href={`/members/${chapterMember.id}`}
-                          aria-label={`View ${chapterMember.name}'s profile`}
                           data-testid={`chapter-member-card-${chapterMember.id}`}
                           className="group min-w-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
                         >
-                          <Card className="h-full overflow-hidden border-border/80 bg-card/70 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/60 group-hover:bg-card group-hover:shadow-md group-hover:ring-1 group-hover:ring-primary/40">
+                          <Card className="h-full overflow-hidden border-border/80 bg-card/70 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:border-primary/60 group-hover:bg-card group-hover:shadow-md group-hover:ring-1 group-hover:ring-primary/40 relative">
                             <CardContent className="flex h-full min-h-28 flex-col items-center justify-center gap-1.5 p-2 text-center">
-                              <Avatar className="h-10 w-10 border border-border transition-transform duration-200 group-hover:scale-105">
+                              <Link href={`/members/${chapterMember.id}`} className="absolute inset-0" aria-label={`View ${chapterMember.name}'s profile`} />
+                              
+                              <Avatar className="h-10 w-10 border border-border transition-transform duration-200 group-hover:scale-105 pointer-events-none relative z-10">
                                 <AvatarImage
                                   src={chapterMember.profilePictureUrl ?? ""}
                                   alt=""
@@ -961,7 +798,7 @@ export default function Profile() {
                                   {chapterMember.name.charAt(0).toUpperCase()}
                                 </AvatarFallback>
                               </Avatar>
-                              <div className="w-full min-w-0">
+                              <div className="w-full min-w-0 pointer-events-none relative z-10">
                                 <p className="truncate text-xs font-semibold">
                                   {chapterMember.name}
                                 </p>
@@ -972,9 +809,16 @@ export default function Profile() {
                                   {chapterMember.company}
                                 </p>
                               </div>
+                              <div className="w-full mt-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 flex gap-2 relative z-10">
+                                <Button size="sm" variant="secondary" className="w-full h-7 text-xs" asChild>
+                                  <Link href={`/messages/new/${chapterMember.id}`}>
+                                    Message
+                                  </Link>
+                                </Button>
+                              </div>
                             </CardContent>
                           </Card>
-                        </Link>
+                        </div>
                       ))}
                     </div>
                     {visibleChapterMemberCount < chapterMembers.length && (

@@ -1,0 +1,58 @@
+"Add Direct Messaging (DM) functionality to Aegis Rise. Members should be able to message each other privately, like Facebook Messenger.
+FEATURES:
+Message Interface:
+Messaging icon in top navigation or sidebar
+Shows list of active conversations
+Click a conversation to open message thread
+Message history visible in chronological order
+Unread message badge (shows count)
+Sending Messages:
+Text input field at bottom of conversation
+'Send' button
+Show timestamp for each message
+Show 'read' status (message seen/unseen)
+Typing indicator ('User is typing...')
+Start New Conversation:
+Click on any member's profile → 'Message' button
+Opens new DM conversation with that member
+Search members by name to start conversation
+Quick access from Chapter Members list
+Message Notifications:
+Real-time notification when member receives message
+Badge shows unread count
+Optional: Email notification for new messages (if offline long)
+Member can toggle notification preferences
+Privacy & Security:
+Messages are PRIVATE (only sender and recipient can see)
+Messages encrypted in database
+Members can block other members
+Messages cannot be deleted (audit trail)
+No message forwarding (just between 2 people)
+Only chapter members can message each other
+Database:
+Messages table: id, sender_id, recipient_id, text, created_at, read_at, chapter_id
+Index on sender/recipient for fast queries
+Soft delete (mark deleted but keep record)
+Backend Endpoints:
+POST /api/messages (send new message)
+GET /api/messages/conversations (list active conversations)
+GET /api/messages/conversations/:id (get message history)
+PUT /api/messages/:id/read (mark as read)
+PUT /api/messages/block/:userId (block member)
+UI/UX:
+Clean conversation list on left
+Active conversation on right
+Show member's profile pic in conversation
+Timestamps on messages
+Online/offline status indicator
+Message bubbles (different color for sender vs recipient)
+Mobile-friendly (single column on mobile)
+Testing:
+Create 2 test members
+Send message from member 1 to member 2
+Verify message appears in both inboxes
+Test unread badge
+Test typing indicator
+Block a member - verify no messages can be sent
+Test on mobile - layout looks good
+When complete, members can network and have direct conversations within Aegis Rise instead of leaving the platform."

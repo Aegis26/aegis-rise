@@ -120,6 +120,13 @@
       "when": 1788186732968,
       "tag": "0016_large_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1788357527290,
+      "tag": "0017_overconfident_night_thrasher",
+      "breakpoints": true
     }
   ]
 }

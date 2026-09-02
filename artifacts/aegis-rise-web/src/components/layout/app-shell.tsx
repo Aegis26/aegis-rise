@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/lib/auth";
 import { aegisLogo } from "@/lib/brand";
-import { getGetCurrentMemberQueryKey, useGetCurrentMember, useLogout } from "@workspace/api-client-react";
-import { Shield, Home, User, Settings, LogOut, Loader2, Menu } from "lucide-react";
+import { getGetCurrentMemberQueryKey, useGetCurrentMember, useLogout, useGetDirectUnreadCount, getGetDirectUnreadCountQueryKey } from "@workspace/api-client-react";
+import { Shield, Home, User, Settings, LogOut, Loader2, Menu, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -76,6 +76,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }, [memberData?.member?.themePreference]);
 
+  const { data: unreadData } = useGetDirectUnreadCount({
+    query: {
+      enabled: !!token,
+      queryKey: getGetDirectUnreadCountQueryKey(),
+      refetchInterval: 10000,
+      refetchOnWindowFocus: true,
+    }
+  });
+
   if (!token) return null;
 
   if (isLoading && !memberData) {
@@ -93,11 +102,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     logoutMutation.mutate();
   };
 
+  const unreadCount = unreadData?.unreadCount || 0;
+
   const NavLinks = () => (
     <>
       <Link href="/feed" className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors" data-testid="nav-feed">
         <Home className="h-5 w-5" />
         <span className="font-medium">Feed</span>
+      </Link>
+      <Link href="/messages" className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors" data-testid="nav-messages">
+        <div className="relative">
+          <MessageSquare className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </div>
+        <span className="font-medium">Messages</span>
       </Link>
       <Link href="/profile" className="flex items-center gap-3 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-md transition-colors" data-testid="nav-profile">
         <User className="h-5 w-5" />

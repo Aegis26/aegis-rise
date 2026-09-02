@@ -17,3 +17,4 @@
 - [Password reset serialization](password-reset-serialization.md) — issue and consume reset tokens under one member lock so emailed links cannot lose races.
 - [NewsAPI query bounds](newsapi-query-bounds.md) — keep personalized NewsAPI queries under the provider’s 500-character limit, including the all-interests case.
 - [Dependency-light regression tests](dependency-light-regression-tests.md) — prefer Node’s test runner with catalog tsx when the package firewall blocks a new runner.
+- [Direct messaging delivery](direct-messaging-delivery.md) — keep durable DM state in PostgreSQL; polling is the fallback until cross-instance pub/sub supports push delivery.

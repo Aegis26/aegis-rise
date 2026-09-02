@@ -1,50 +1,4 @@
-openapi: 3.1.0
-info:
-  # Do not change the title, if the title changes, the import paths will be broken
-  title: Api
-  version: 0.1.0
-  description: Aegis Rise member, social feed, and chapter administration API.
-servers:
-  - url: /api
-    description: Base API path
-tags:
-  - name: health
-  - name: auth
-  - name: social
-  - name: members
-  - name: news
-  - name: posts
-  - name: shares
-  - name: uploads
-  - name: admin
-paths:
-  /healthz:
-    get:
-      operationId: healthCheck
-      tags: [health]
-      summary: Health check
-      responses:
-        "200":
-          description: Healthy
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthStatus"
-  /readyz:
-    get:
-      operationId: readinessCheck
-      tags: [health]
-      summary: Database readiness check
-      responses:
-        "200":
-          description: Application and database are ready
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/HealthStatus"
-        "503":
-          description: Database is unavailable
-          content:
+       content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
@@ -965,6 +919,117 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ModerationLogList"
+  /messages/conversations:
+    get:
+      operationId: listDirectConversations
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Direct-message conversations with active chapter peers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectConversationList" }
+  /messages/conversations/{conversationId}:
+    get:
+      operationId: getDirectConversation
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+        - $ref: "#/components/parameters/Limit"
+        - name: cursor
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Conversation messages
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectConversationThread" }
+  /messages:
+    post:
+      operationId: sendDirectMessage
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DirectMessageInput" }
+      responses:
+        "201":
+          description: Message sent or an idempotent prior result returned
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectMessageResponse" }
+  /messages/conversations/{conversationId}/read:
+    post:
+      operationId: markDirectMessagesRead
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/ConversationId" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DirectMessageReadInput" }
+      responses:
+        "200":
+          description: Received messages marked read through the supplied message
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectMessageReadResult" }
+  /messages/unread-count:
+    get:
+      operationId: getDirectUnreadCount
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Unread direct message count
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectUnreadCount" }
+  /messages/blocks/{memberId}:
+    put:
+      operationId: blockDirectMember
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/MemberId" }]
+      responses:
+        "200":
+          description: Member blocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectBlockResult" }
+    delete:
+      operationId: unblockDirectMember
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/MemberId" }]
+      responses:
+        "200":
+          description: Member unblocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectBlockResult" }
+  /messages/typing:
+    post:
+      operationId: updateDirectMessageTyping
+      tags: [messages]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DirectTypingInput" }
+      responses:
+        "200":
+          description: Typing heartbeat updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DirectTypingResult" }
 components:
   securitySchemes:
     bearerAuth:
@@ -1000,6 +1065,11 @@ components:
       in: path
       required: true
       schema: { $ref: "#/components/schemas/SocialPlatform" }
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
   schemas:
     HealthStatus:
       type: object
@@ -1705,4 +1775,103 @@ components:
           type: array
           items: { $ref: "#/components/schemas/ModerationLog" }
         pagination: { $ref: "#/components/schemas/Pagination" }
+    DirectPeer:
+      type: object
+      required: [id, name, title, company, profilePictureUrl, online, typing, isBlocked, hasBlockedYou]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        title: { type: string }
+        company: { type: string }
+        profilePictureUrl: { type: [string, "null"], format: uri }
+        online: { type: boolean }
+        typing: { type: boolean }
+        isBlocked: { type: boolean }
+        hasBlockedYou: { type: boolean }
+    DirectMessage:
+      type: object
+      required: [id, senderId, recipientId, body, createdAt, readAt, isOwn, isDeleted]
+      properties:
+        id: { type: string, format: uuid }
+        senderId: { type: string, format: uuid }
+        recipientId: { type: string, format: uuid }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: [string, "null"], format: date-time }
+        isOwn: { type: boolean }
+        isDeleted: { type: boolean }
+    DirectConversation:
+      type: object
+      required: [id, chapter, lastMessageAt, peer, unreadCount]
+      properties:
+        id: { type: string, format: uuid }
+        chapter: { type: string }
+        lastMessageAt: { type: string, format: date-time }
+        peer: { $ref: "#/components/schemas/DirectPeer" }
+        unreadCount: { type: integer }
+        lastMessage: { $ref: "#/components/schemas/DirectMessage" }
+    DirectConversationList:
+      type: object
+      required: [conversations]
+      properties:
+        conversations:
+          type: array
+          items: { $ref: "#/components/schemas/DirectConversation" }
+    DirectConversationThread:
+      type: object
+      required: [conversation, messages, nextCursor]
+      properties:
+        conversation: { $ref: "#/components/schemas/DirectConversation" }
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/DirectMessage" }
+        nextCursor: { type: [string, "null"] }
+    DirectMessageInput:
+      type: object
+      required: [recipientId, body, clientMessageId]
+      properties:
+        recipientId: { type: string, format: uuid }
+        body: { type: string, minLength: 1, maxLength: 4000 }
+        clientMessageId: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+    DirectMessageResponse:
+      type: object
+      required: [conversationId, message, idempotent]
+      properties:
+        conversationId: { type: string, format: uuid }
+        message: { $ref: "#/components/schemas/DirectMessage" }
+        idempotent: { type: boolean }
+    DirectMessageReadInput:
+      type: object
+      required: [messageId]
+      properties:
+        messageId: { type: string, format: uuid }
+    DirectMessageReadResult:
+      type: object
+      required: [readThroughMessageId, updatedCount]
+      properties:
+        readThroughMessageId: { type: string, format: uuid }
+        updatedCount: { type: integer }
+    DirectUnreadCount:
+      type: object
+      required: [unreadCount]
+      properties: { unreadCount: { type: integer } }
+    DirectBlockResult:
+      type: object
+      required: [memberId, blocked]
+      properties:
+        memberId: { type: string, format: uuid }
+        blocked: { type: boolean }
+    DirectTypingInput:
+      type: object
+      required: [recipientId, isTyping]
+      properties:
+        recipientId: { type: string, format: uuid }
+        isTyping: { type: boolean }
+    DirectTypingResult:
+      type: object
+      required: [recipientId, isTyping]
+      properties:
+        recipientId: { type: string, format: uuid }
+        isTyping: { type: boolean }
 

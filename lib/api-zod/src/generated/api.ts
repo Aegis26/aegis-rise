@@ -1020,3 +1020,141 @@ export const ListModerationLogsResponse = zod.object({
 })
 
 
+export const ListDirectConversationsResponse = zod.object({
+  "conversations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "chapter": zod.string(),
+  "lastMessageAt": zod.coerce.date(),
+  "peer": zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "company": zod.string(),
+  "profilePictureUrl": zod.string().url().nullable(),
+  "online": zod.boolean(),
+  "typing": zod.boolean(),
+  "isBlocked": zod.boolean(),
+  "hasBlockedYou": zod.boolean()
+}),
+  "unreadCount": zod.number().int(),
+  "lastMessage": zod.object({
+  "id": zod.string().uuid(),
+  "senderId": zod.string().uuid(),
+  "recipientId": zod.string().uuid(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable(),
+  "isOwn": zod.boolean(),
+  "isDeleted": zod.boolean()
+}).optional()
+}))
+})
+
+
+export const GetDirectConversationResponse = zod.object({
+  "conversation": zod.object({
+  "id": zod.string().uuid(),
+  "chapter": zod.string(),
+  "lastMessageAt": zod.coerce.date(),
+  "peer": zod.object({
+  "id": zod.string().uuid(),
+  "name": zod.string(),
+  "title": zod.string(),
+  "company": zod.string(),
+  "profilePictureUrl": zod.string().url().nullable(),
+  "online": zod.boolean(),
+  "typing": zod.boolean(),
+  "isBlocked": zod.boolean(),
+  "hasBlockedYou": zod.boolean()
+}),
+  "unreadCount": zod.number().int(),
+  "lastMessage": zod.object({
+  "id": zod.string().uuid(),
+  "senderId": zod.string().uuid(),
+  "recipientId": zod.string().uuid(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable(),
+  "isOwn": zod.boolean(),
+  "isDeleted": zod.boolean()
+}).optional()
+}),
+  "messages": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "senderId": zod.string().uuid(),
+  "recipientId": zod.string().uuid(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable(),
+  "isOwn": zod.boolean(),
+  "isDeleted": zod.boolean()
+})),
+  "nextCursor": zod.string().nullable()
+})
+
+
+export const sendDirectMessageBodyBodyMax = 4000;
+
+
+
+export const SendDirectMessageBody = zod.object({
+  "recipientId": zod.string().uuid(),
+  "body": zod.string().min(1).max(sendDirectMessageBodyBodyMax),
+  "clientMessageId": zod.string().uuid(),
+  "conversationId": zod.string().uuid().optional()
+})
+
+export const SendDirectMessageResponse = zod.object({
+  "conversationId": zod.string().uuid(),
+  "message": zod.object({
+  "id": zod.string().uuid(),
+  "senderId": zod.string().uuid(),
+  "recipientId": zod.string().uuid(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "readAt": zod.coerce.date().nullable(),
+  "isOwn": zod.boolean(),
+  "isDeleted": zod.boolean()
+}),
+  "idempotent": zod.boolean()
+})
+
+
+export const MarkDirectMessagesReadBody = zod.object({
+  "messageId": zod.string().uuid()
+})
+
+export const MarkDirectMessagesReadResponse = zod.object({
+  "readThroughMessageId": zod.string().uuid(),
+  "updatedCount": zod.number().int()
+})
+
+
+export const GetDirectUnreadCountResponse = zod.object({
+  "unreadCount": zod.number().int()
+})
+
+
+export const BlockDirectMemberResponse = zod.object({
+  "memberId": zod.string().uuid(),
+  "blocked": zod.boolean()
+})
+
+
+export const UnblockDirectMemberResponse = zod.object({
+  "memberId": zod.string().uuid(),
+  "blocked": zod.boolean()
+})
+
+
+export const UpdateDirectMessageTypingBody = zod.object({
+  "recipientId": zod.string().uuid(),
+  "isTyping": zod.boolean()
+})
+
+export const UpdateDirectMessageTypingResponse = zod.object({
+  "recipientId": zod.string().uuid(),
+  "isTyping": zod.boolean()
+})
+
+

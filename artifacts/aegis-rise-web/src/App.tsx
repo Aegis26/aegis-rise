@@ -22,6 +22,7 @@ import Feed from '@/pages/feed';
 import Profile from '@/pages/profile';
 import PublicProfile from '@/pages/public-profile';
 import Admin from '@/pages/admin';
+import Messages from '@/pages/messages';
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,19 @@ function Router() {
         {/* Protected Routes inside AppShell */}
         <Route path="/feed">
           <ProtectedRoute component={Feed} />
+        </Route>
+        <Route path="/messages">
+          <ProtectedRoute component={Messages} />
+        </Route>
+        <Route path="/messages/new/:memberId">
+          {(params) => (
+            <ProtectedRoute component={() => <Messages newMemberId={params.memberId} />} />
+          )}
+        </Route>
+        <Route path="/messages/:conversationId">
+          {(params) => (
+            <ProtectedRoute component={() => <Messages conversationId={params.conversationId} />} />
+          )}
         </Route>
         <Route path="/profile/settings">
           <ProtectedRoute component={Profile} />

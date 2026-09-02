@@ -842,6 +842,96 @@ export interface ModerationLogList {
   pagination: Pagination;
 }
 
+export interface DirectPeer {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  /** @nullable */
+  profilePictureUrl: string | null;
+  online: boolean;
+  typing: boolean;
+  isBlocked: boolean;
+  hasBlockedYou: boolean;
+}
+
+export interface DirectMessage {
+  id: string;
+  senderId: string;
+  recipientId: string;
+  body: string;
+  createdAt: string;
+  /** @nullable */
+  readAt: string | null;
+  isOwn: boolean;
+  isDeleted: boolean;
+}
+
+export interface DirectConversation {
+  id: string;
+  chapter: string;
+  lastMessageAt: string;
+  peer: DirectPeer;
+  unreadCount: number;
+  lastMessage?: DirectMessage;
+}
+
+export interface DirectConversationList {
+  conversations: DirectConversation[];
+}
+
+export interface DirectConversationThread {
+  conversation: DirectConversation;
+  messages: DirectMessage[];
+  /** @nullable */
+  nextCursor: string | null;
+}
+
+export interface DirectMessageInput {
+  recipientId: string;
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  body: string;
+  clientMessageId: string;
+  conversationId?: string;
+}
+
+export interface DirectMessageResponse {
+  conversationId: string;
+  message: DirectMessage;
+  idempotent: boolean;
+}
+
+export interface DirectMessageReadInput {
+  messageId: string;
+}
+
+export interface DirectMessageReadResult {
+  readThroughMessageId: string;
+  updatedCount: number;
+}
+
+export interface DirectUnreadCount {
+  unreadCount: number;
+}
+
+export interface DirectBlockResult {
+  memberId: string;
+  blocked: boolean;
+}
+
+export interface DirectTypingInput {
+  recipientId: string;
+  isTyping: boolean;
+}
+
+export interface DirectTypingResult {
+  recipientId: string;
+  isTyping: boolean;
+}
+
 export type PageParameter = number;
 
 export type LimitParameter = number;
@@ -1019,4 +1109,13 @@ export const ListModerationLogsAction = {
   update_settings: 'update_settings',
   update_guidelines: 'update_guidelines',
 } as const;
+
+export type GetDirectConversationParams = {
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+limit?: LimitParameter;
+cursor?: string;
+};
 

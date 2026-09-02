@@ -3,9 +3,11 @@ import {
   useGetMember, 
   useListMemberPosts,
   getGetMemberQueryKey,
-  getListMemberPostsQueryKey
+  getListMemberPostsQueryKey,
+  useGetCurrentMember,
+  getGetCurrentMemberQueryKey
 } from "@workspace/api-client-react";
-import { Loader2, CalendarDays, Share2, MapPin, ArrowLeft } from "lucide-react";
+import { Loader2, CalendarDays, Share2, MapPin, ArrowLeft, MessageSquare } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -15,6 +17,12 @@ import { PostGallery } from "@/components/feed/post-gallery";
 import { ProfileHero } from "./components/profile-hero";
 
 export default function PublicProfile({ memberId }: { memberId: string }) {
+  const { data: currentMemberData } = useGetCurrentMember({
+    query: {
+      queryKey: getGetCurrentMemberQueryKey(),
+    }
+  });
+
   const { data: memberData, isLoading: memberLoading } = useGetMember(memberId, {
     query: {
       queryKey: getGetMemberQueryKey(memberId),
@@ -77,13 +85,22 @@ export default function PublicProfile({ memberId }: { memberId: string }) {
       )}
 
       <div className="max-w-4xl mx-auto w-full p-4 md:p-6 lg:p-8 space-y-8 relative z-10">
-        <div>
-          <Button variant="ghost" asChild className="mb-4 -ml-4" data-testid="button-back-feed">
+        <div className="flex justify-between items-center mb-4">
+          <Button variant="ghost" asChild className="-ml-4" data-testid="button-back-feed">
             <Link href="/feed">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Feed
             </Link>
           </Button>
+
+          {currentMemberData?.member?.id !== member.id && (
+            <Button asChild>
+              <Link href={`/messages/new/${member.id}`}>
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Message
+              </Link>
+            </Button>
+          )}
         </div>
 
         <ProfileHero

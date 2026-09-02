@@ -5,12 +5,13 @@
   "packageManager": "pnpm@10.26.1",
   "scripts": {
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
-    "build:railway": "pnpm run test:news && pnpm run typecheck && pnpm --filter @workspace/aegis-rise-web run build && pnpm --filter @workspace/api-server run build",
+    "build:railway": "pnpm run test:news && pnpm run test:messages && pnpm run typecheck && pnpm --filter @workspace/aegis-rise-web run build && pnpm --filter @workspace/api-server run build",
     "start:railway": "NODE_ENV=production SERVE_WEB=true node --enable-source-maps artifacts/api-server/dist/index.mjs",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
-    "test:news": "node --import tsx --test tests/news/*.test.ts"
+    "test:news": "node --import tsx --test tests/news/*.test.ts",
+    "test:messages": "node --import tsx --test tests/messages/*.test.ts"
   },
   "private": true,
   "dependencies": {
